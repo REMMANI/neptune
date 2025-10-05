@@ -4,7 +4,6 @@ const base: ThemeDescriptor = {
   key: 'base',
   name: 'Base Theme',
   version: '1.0.0',
-  // ❌ NO extends here
   tokens: {
     'color-brand-500': '#0ea5e9',
     'color-brand-600': '#0284c7',

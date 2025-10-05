@@ -1,8 +1,8 @@
-// src/app/api/config/[tenant]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { CLIENTS } from '@/data/clients';
-import { THEME_REGISTRY } from '@/themes'; // ← not THEME_REGISTRY
-import { mergePages, mergeTokens, type Page } from '@/lib/merge'; // ← import Page
+import { THEME_REGISTRY } from '@/themes'; 
+import { mergePages, mergeTokens, type Page } from '@/lib/merge'; 
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,7 @@ export async function GET(
   const theme = THEME_REGISTRY[site.themeKey];
   const tokens = mergeTokens(theme.defaultTokens, site.themeOverrides);
   const pages  = mergePages(
-    theme.defaultPages as Record<string, Page>,                     // 👈 cast base
+    theme.defaultPages as Record<string, Page>,                     
     site.pages as Record<string, Partial<Page>> | undefined  
   );
 

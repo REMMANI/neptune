@@ -8,7 +8,7 @@ type Params = { id: string };
 
 export async function GET(
     _req: NextRequest,
-    ctx: { params: Promise<Params> }  // Next 15: params is a Promise
+    ctx: { params: Promise<Params> } 
 ) {
     const { id } = await ctx.params;
     const dealerId = Number(id);

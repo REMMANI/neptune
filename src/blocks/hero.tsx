@@ -6,7 +6,6 @@ export type HeroProps = {
   locale?: string;
 };
 
-// 👇 make sure the exported name is *Hero*
 export function Hero({ title = 'Welcome', subtitle }: HeroProps) {
   return (
     <section className="py-24">

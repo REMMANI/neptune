@@ -16,9 +16,9 @@ export function Footer({ brand, year = new Date().getFullYear() }: FooterProps) 
                         <Image
                         src={brand.logo}
                         alt={brand.alt ?? brand.name ?? "logo"}
-                        width={96}            // pick the real intrinsic width
-                        height={24}           // pick the real intrinsic height
-                        priority              // logos are usually above the fold
+                        width={96}            
+                        height={24}           
+                        priority              
                         sizes="96px"
                         className="h-6 w-auto"
                         />

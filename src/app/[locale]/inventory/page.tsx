@@ -10,19 +10,19 @@ export default async function Inventory({
     params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const { theme, raw } = await getConfig();      // ← theme, not pages
-  const page = theme.pages['/inventory'];                 // ← use theme.pages
+  const { theme, raw } = await getConfig();      
+  const page = theme.pages['/inventory'];                 
 
   if (!page) {
-    // Optional: surface a 404 if the slug isn't defined in the theme
-    // import { notFound } from 'next/navigation'; notFound();
+    
+    
     throw new Error('Home page not defined in theme.pages');
   }
 
     return (
         <main>
             <RenderBlocks
-                blocks={page.blocks}                 // can be unknown-ish; we normalize inside
+                blocks={page.blocks}                 
                 locale={locale}
                 brand={{ name: raw.name, logo: raw.logo?.url }}
             />

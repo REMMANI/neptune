@@ -1,4 +1,4 @@
-// src/themes/types.ts
+
 import type { AnyBlock } from '@/blocks';
 
 export type ThemeTokens = Record<string, string>;
@@ -11,10 +11,10 @@ export type ThemeDescriptor = {
   key: string;
   name: string;
   version: string;
-  extends?: string;             // parent key, e.g. 'base' or 't1'
+  extends?: string;             
   tokens?: ThemeTokens;
   pages?: ThemePages;
-  components?: ComponentOverrides; // per-theme component shadowing
+  components?: ComponentOverrides; 
 };
 
 export type DealerOverrides = {

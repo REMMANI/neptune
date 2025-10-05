@@ -1,6 +1,4 @@
 'use client';
-import Link from 'next/link';
-import { tr } from '@/lib/i18n';
 import Image from 'next/image';
 
 
@@ -20,9 +18,7 @@ export default function Nav({ menu, locale, logo }: { menu: Array<{ label: Recor
             />
         )}
         <ul className="flex items-center gap-4 text-sm">
-          {menu.map((m, i) => (
-            <li key={i}><Link href={`/${locale}${m.href}`}>{tr(m.label, locale, m.href)}</Link></li>
-          ))}
+          <li>test 100133</li>
         </ul>
       </nav>
     </header>

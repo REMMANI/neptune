@@ -1,4 +1,4 @@
-// src/components/RenderBlocks.tsx
+
 import * as Base from '@/blocks';
 import {
     type AnyBlock, type HeroProps, type FeaturesProps, type FooterProps,
@@ -9,9 +9,9 @@ async function resolveComponent(type: AnyBlock['type'], theme?: ResolvedTheme) {
     const override = theme?.components?.[type as string];
     if (override) {
         const mod = await override();
-        return mod?.default;             // MUST be default export
+        return mod?.default;             
     }
-    return (Base as any)[type];        // fallback to base blocks
+    return (Base as any)[type];        
 }
 
 export async function RenderBlocks({
@@ -22,7 +22,7 @@ export async function RenderBlocks({
 }: {
     blocks: AnyBlock[] | unknown;
     brand?: { name?: string; logo?: string };
-    theme?: ResolvedTheme;             // ← required for overrides
+    theme?: ResolvedTheme;             
     locale?: string;
 }) {
     const list: AnyBlock[] = Array.isArray(blocks) ? (blocks as AnyBlock[]) : [];

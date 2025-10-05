@@ -1,4 +1,3 @@
-// src/themes/t1/components/hero.tsx
 'use client';
 import { Hero, type HeroProps } from '@/blocks/hero';
 

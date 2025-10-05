@@ -1,4 +1,3 @@
-// Local mock data for dealers. Used by fetchDealerConfig() when DEALER_API_BASE is not set.
 export type DealerMock = {
   dealerId: number;
   name: string;
@@ -9,11 +8,11 @@ export type DealerMock = {
   menu: Array<{ label: Record<string, string>; href: string }>;
   seo?: Record<string, { title?: string; description?: string }>;
   pages?: Record<string, { blocks: Array<{ type: string; props?: Record<string, unknown> }> }>;
-  headerVariant?: 'default' | 'premium' | 'banner'; // optional UI variant
+  headerVariant?: 'default' | 'premium' | 'banner';
 };
 
 const dealers: Record<number, DealerMock> = {
-  // ===== Dealer A: Sunrise Motors (uses parent "base" theme) =====
+ 
   100133: {
     dealerId: 102334,
     name: 'Sunrise Motors',
@@ -65,7 +64,7 @@ const dealers: Record<number, DealerMock> = {
     },
   },
 
-  // ===== Dealer C: VIP dealer with “cloned” static header (still uses base) =====
+ 
   102324: {
     dealerId: 102324,
     name: 'Prime Drive',
@@ -89,11 +88,11 @@ const dealers: Record<number, DealerMock> = {
       '/': { title: 'Premium selection', description: 'Exclusive offers for Prime Drive' },
       '/offers': { title: 'Offers', description: 'Limited-time deals' },
     },
-    headerVariant: 'premium', // you can use this in Nav or via a StaticHeader block injection
+    headerVariant: 'premium',
     pages: {
       '/': {
         blocks: [
-          // You can prepend a StaticHeader block in getConfig() for this dealer
+         
           { type: 'Hero', props: { title: 'Exclusive Header', subtitle: 'dealer contents' } },
           { type: 'Features', props: { items: [
             { title: 'VIP Support', description: 'Priority service' },

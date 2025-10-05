@@ -2,12 +2,9 @@ import { THEME_REGISTRY, type ThemeKey } from './index';
 import type { ThemeDescriptor, ThemeTokens, ThemePages, ComponentOverrides, DealerOverrides } from './types';
 
 const DEFAULT_THEME: ThemeKey = 'base';
-// Optional alias map for legacy keys:
-const THEME_ALIASES: Record<string, ThemeKey> = {
-  // classic: 'base',
-};
+const THEME_ALIASES: Record<string, ThemeKey> = {};
 
-function mergeTokens(...layers: (ThemeTokens|undefined)[]): ThemeTokens {
+function mergeTokens(...layers: (ThemeTokens | undefined)[]): ThemeTokens {
   return Object.assign({}, ...layers.filter(Boolean));
 }
 function mergeBlocks(parent: any[] = [], child?: any[]) {
@@ -19,15 +16,15 @@ function mergeBlocks(parent: any[] = [], child?: any[]) {
 }
 function mergePages(parent?: ThemePages, child?: ThemePages): ThemePages {
   const out: ThemePages = {};
-  const keys = new Set([...(Object.keys(parent||{})), ...(Object.keys(child||{}))]);
+  const keys = new Set([...(Object.keys(parent || {})), ...(Object.keys(child || {}))]);
   for (const k of keys) {
     const p = parent?.[k]; const c = child?.[k];
-    out[k] = { seo: { ...(p?.seo||{}), ...(c?.seo||{}) }, blocks: mergeBlocks(p?.blocks, c?.blocks) };
+    out[k] = { seo: { ...(p?.seo || {}), ...(c?.seo || {}) }, blocks: mergeBlocks(p?.blocks, c?.blocks) };
   }
   return out;
 }
 function mergeComponents(parent?: ComponentOverrides, child?: ComponentOverrides): ComponentOverrides {
-  return { ...(parent||{}), ...(child||{}) };
+  return { ...(parent || {}), ...(child || {}) };
 }
 
 export type ResolvedTheme = {
@@ -40,13 +37,11 @@ export type ResolvedTheme = {
 };
 
 export function resolveTheme(themeKey: ThemeKey | string, dealer?: DealerOverrides): ResolvedTheme {
-  // normalize via aliases
   const firstKey = (THEME_ALIASES[themeKey] ?? themeKey) as ThemeKey;
 
   const seen = new Set<string>();
   const chain: ThemeDescriptor[] = [];
 
-  // Walk up the parent chain
   let cur = THEME_REGISTRY[firstKey] ?? THEME_REGISTRY[DEFAULT_THEME];
   if (!cur) throw new Error('No themes registered');
 
@@ -56,7 +51,6 @@ export function resolveTheme(themeKey: ThemeKey | string, dealer?: DealerOverrid
       throw new Error(`Cyclic theme extends: ${cur.key}\nChain: ${path}`);
     }
     seen.add(cur.key);
-    chain.unshift(cur); // parent-first order
 
     const parentKey = cur.extends as ThemeKey | undefined;
     if (!parentKey) break;
@@ -70,7 +64,6 @@ export function resolveTheme(themeKey: ThemeKey | string, dealer?: DealerOverrid
     cur = next;
   }
 
-  // Fold the chain: base → ... → leaf
   let tokens: ThemeTokens = {};
   let pages: ThemePages = {};
   let components: ComponentOverrides = {};
@@ -80,7 +73,6 @@ export function resolveTheme(themeKey: ThemeKey | string, dealer?: DealerOverrid
     components = mergeComponents(components, t.components);
   }
 
-  // Dealer overrides last
   if (dealer) {
     tokens = mergeTokens(tokens, dealer.tokens);
     pages = mergePages(pages, dealer.pages);
@@ -88,5 +80,6 @@ export function resolveTheme(themeKey: ThemeKey | string, dealer?: DealerOverrid
   }
 
   const leaf = chain.at(-1)!;
-  return { key: leaf.key, name: leaf.name, version: leaf.version, tokens, pages, components };
+  
+  return { key: leaf?.key, name: leaf?.name, version: leaf?.version, tokens, pages, components };
 }
