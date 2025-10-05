@@ -1,12 +1,9 @@
 'use client';
 
-import Image from 'next/image';
+import Image from "next/image";
 
-type FooterProps = {
-    brand?: {
-        logo?: string;
-        name?: string;
-    };
+export type FooterProps = {
+    brand?: { name?: string; logo?: string, alt?: string };
     year?: number;
 };
 
@@ -17,15 +14,16 @@ export function Footer({ brand, year = new Date().getFullYear() }: FooterProps) 
                 <div className="flex items-center gap-3">
                     {brand?.logo && (
                         <Image
-                            src={brand.logo}
-                            alt="logo"
-                            height={24}
-                            width={24}
-                            className="h-6 w-auto"
-                            priority
+                        src={brand.logo}
+                        alt={brand.alt ?? brand.name ?? "logo"}
+                        width={96}            // pick the real intrinsic width
+                        height={24}           // pick the real intrinsic height
+                        priority              // logos are usually above the fold
+                        sizes="96px"
+                        className="h-6 w-auto"
                         />
                     )}
-                    <span>{brand?.name ?? 'Brand'}</span>
+                    <span>{brand?.name ?? 'Dealership'}</span>
                 </div>
                 <div>© {year} All rights reserved.</div>
             </div>

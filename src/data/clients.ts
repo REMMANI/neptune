@@ -1,4 +1,4 @@
-import { TemplateKey } from '@/templates';
+import { themeKey } from '@/themes';
 
 
 type PageSEO = {
@@ -15,7 +15,7 @@ type PageBlock = {
 export type ClientSite = {
     tenantKey: string;
     primaryDomain?: string;
-    templateKey: TemplateKey;
+    themeKey: themeKey;
     themeOverrides?: Record<string, string>;
     pages?: Record<string, { seo?: PageSEO; blocks?: PageBlock[] }>;
     localeDefault?: 'en' | 'fr' | 'es' | 'ar';
@@ -26,7 +26,7 @@ export type ClientSite = {
 export const CLIENTS: Record<string, ClientSite> = {
     demo1: {
         tenantKey: 'demo1',
-        templateKey: 'saas',
+        themeKey: 'saas',
         brand: { name: 'Acme', logo: '/logo-demo1.svg' },
         themeOverrides: { 'color-brand-500': '#22c55e', 'color-brand-600': '#16a34a' },
         pages: {
@@ -51,14 +51,14 @@ export const CLIENTS: Record<string, ClientSite> = {
     },
     demo2: {
         tenantKey: 'demo2',
-        templateKey: 'clinic',
+        themeKey: 'clinic',
         brand: { name: 'CarePlus' },
         themeOverrides: { 'radius': '24px' },
         localeDefault: 'fr'
     },
     demo3: {
         tenantKey: 'demo3',
-        templateKey: 'portfolio',
+        themeKey: 'portfolio',
         brand: { name: 'Yassine' },
         localeDefault: 'ar'
     }

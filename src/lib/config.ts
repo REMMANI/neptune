@@ -1,8 +1,25 @@
-export async function getTenantConfig(tenant: string) {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ''}/api/config/${tenant}`, {
-        // Next.js RSC fetch: cache defaults are fine for demo
-        next: { revalidate: 60 }
-    });
-    if (!res.ok) throw new Error('Config fetch failed');
-    return res.json();
-}
+import 'server-only';
+
+import { THEME_REGISTRY, type ThemeKey } from '@/themes';
+import { fetchDealerConfig } from './api';
+import { DEALER_OVERRIDES } from '@/dealers/manifest';
+import { resolveTheme } from '@/themes/loader';
+const FALLBACK_THEME: ThemeKey = 'base';
+
+export const getConfig = (async () => {
+
+  const cfg = await fetchDealerConfig();
+  const requested = String(cfg.themeKey || ''); // or cfg.themeKey
+  const themeKey = (requested in THEME_REGISTRY ? requested : FALLBACK_THEME) as ThemeKey;
+
+  const dealerMod = (DEALER_OVERRIDES as any)[cfg.dealerId] ? await (DEALER_OVERRIDES as any)[cfg.dealerId]() : null;
+  const dealerOverrides = dealerMod?.default;
+
+  const theme = resolveTheme(themeKey, {
+    ...(dealerOverrides || {}),
+    tokens: { ...(dealerOverrides?.tokens || {}), ...(cfg.theme || {}) },
+    pages:  { ...(dealerOverrides?.pages  || {}), ...(cfg.pages || {}) },
+  });
+
+  return { raw: cfg, theme };
+});

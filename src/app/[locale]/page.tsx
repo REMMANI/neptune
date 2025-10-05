@@ -1,23 +1,28 @@
+import { getConfig } from '@/lib/config';
 import { RenderBlocks } from '@/components/RenderBlocks';
-import ThemeStyle from '@/components/ThemeStyle';
-import { SUPPORTED_LOCALES, type Locale } from '@/lib/i18n';
-import { getTenantConfig } from '@/lib/config';
 
+export const dynamic = 'force-static';
+export const revalidate = false;
 
-export default async function Page({ params, searchParams }: { params: Promise<{ locale: Locale }>, searchParams: Promise<{ tenant?: string }> }) {
-  const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
-  const locale = SUPPORTED_LOCALES.includes(resolvedParams.locale) ? resolvedParams.locale : 'en';
-  const DEFAULT_TENANT = 'demo1';
-  const tenant = resolvedSearchParams?.tenant || DEFAULT_TENANT;
-  console.log('Rendering locale', locale, 'for tenant', tenant);
+export default async function Home({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  const { theme, raw } = await getConfig();
+  const page = theme.pages['/'];                // ← use theme.pages
 
-  const cfg = await getTenantConfig(tenant);
-  const page = cfg.pages['/'];
+  if (!page) {
+    // Optional: surface a 404 if the slug isn't defined in the theme
+    // import { notFound } from 'next/navigation'; notFound();
+    throw new Error('Home page not defined in theme.pages');
+  }
+
   return (
     <main>
-      <ThemeStyle tokens={cfg.tokens} />
-      <RenderBlocks blocks={page.blocks} locale={locale} />
+      <RenderBlocks
+        blocks={page.blocks}
+        theme={theme}  // ← THIS enables overrides
+        brand={{ name: raw.name, logo: raw.logo?.url }}
+        locale={locale}
+      />
     </main>
   );
 }
