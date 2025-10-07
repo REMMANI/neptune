@@ -1,9 +1,6 @@
 import { getConfig } from '@/lib/config';
 import { RenderBlocks } from '@/components/RenderBlocks';
 
-export const dynamic = 'force-static';
-export const revalidate = false;
-
 export default async function Home({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const { theme, raw } = await getConfig();

@@ -1,5 +1,5 @@
-import { listAllPageSlugs } from "@/lib/cms";
 import type { MetadataRoute } from "next";
+import { listAllPageSlugs } from "@/lib/listAllPageSlugs"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const locales = ["en","fr","es","ar"] as const;
