@@ -8,12 +8,10 @@ export default async function Inventory({
 }) {
   const { locale } = await params;
   const { theme, raw } = await getConfig();      
-  const page = theme.pages['/inventory'];                 
+  const page = theme.pages['/vdp'];                 
 
   if (!page) {
-    
-    
-    throw new Error('Inventory page not defined in theme.pages');
+    throw new Error('VDP page not defined in theme.pages');
   }
 
     return (

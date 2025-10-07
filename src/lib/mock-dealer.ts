@@ -83,6 +83,7 @@ const dealers: Record<number, DealerMock> = {
       { label: { en: 'Home', fr: 'Accueil', es: 'Inicio' }, href: '/' },
       { label: { en: 'Inventory', fr: 'Stock', es: 'Inventario' }, href: '/inventory' },
       { label: { en: 'Offers', fr: 'Offres', es: 'Ofertas' }, href: '/offers' },
+      { label: { en: 'Finance', fr: 'finance', es: 'finance' }, href: '/finance' },
     ],
     seo: {
       '/': { title: 'Premium selection', description: 'Exclusive offers for Prime Drive' },
@@ -105,6 +106,12 @@ const dealers: Record<number, DealerMock> = {
       '/inventory': {
         blocks: [
           { type: 'Hero', props: { title: 'Inventory', subtitle: 'High-end vehicles' } },
+          { type: 'Footer' },
+        ],
+      },
+      '/vdp': {
+        blocks: [
+          { type: 'Hero', props: { title: 'VDP', subtitle: 'honda' } },
           { type: 'Footer' },
         ],
       },

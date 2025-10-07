@@ -2,11 +2,6 @@ import '../globals.css';
 import { getConfig } from '@/lib/config';
 import Nav from '@/themes/base/components/Nav';
 
-
-export const dynamic = 'force-static'; 
-export const revalidate = false; 
-
-
 export default async function RootLayout({ children, params }: { children: React.ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const cfg = await getConfig();
