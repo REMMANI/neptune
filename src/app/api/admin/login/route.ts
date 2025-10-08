@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
     // Get current tenant (dealer) from domain
     const tenant = await getCurrentTenant();
 
-    // For dealer admins, ensure they can only access their dealer
-    if (user.role === 'DEALER_ADMIN' && user.dealerId !== tenant.dealerId) {
+    // Ensure dealer admin can only access their dealer
+    if (user.dealerId !== tenant.dealerId) {
       return NextResponse.json(
         { error: 'Access denied for this dealer' },
         { status: 403 }
@@ -43,8 +43,7 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
-        permissions: user.permissions,
+        dealerId: user.dealerId,
       },
     });
 

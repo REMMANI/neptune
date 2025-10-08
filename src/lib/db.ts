@@ -42,7 +42,6 @@ export class DatabaseService {
       select: {
         id: true,
         slug: true,
-        themeKey: true,
         status: true,
       },
     });
@@ -59,8 +58,8 @@ export class DatabaseService {
       select: {
         id: true,
         slug: true,
-        themeKey: true,
         status: true,
+        name: true,
       },
     });
   }
@@ -76,8 +75,8 @@ export class DatabaseService {
       select: {
         id: true,
         slug: true,
-        themeKey: true,
         status: true,
+        name: true,
       },
     });
   }
@@ -86,18 +85,34 @@ export class DatabaseService {
   async getDealerCustomization(dealerId: string, status: 'DRAFT' | 'PUBLISHED') {
     await this.ensureConnection();
 
-    return await prisma.dealerCustomization.findUnique({
-      where: {
-        dealerId_status: {
-          dealerId,
-          status,
+    try {
+      return await prisma.dealerCustomization.findUnique({
+        where: {
+          dealerId_status: {
+            dealerId,
+            status,
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      // Handle schema mismatch gracefully - return null if table/columns don't exist
+      if (error instanceof Error && error.message.includes('does not exist in the current database')) {
+        console.warn(`Database schema mismatch for dealerCustomization: ${error.message}`);
+        return null;
+      }
+      throw error;
+    }
   }
 
   async upsertDraftCustomization(dealerId: string, data: Partial<DealerConfig>) {
     await this.ensureConnection();
+
+    // Convert DealerConfig to new schema format
+    const sections = JSON.stringify(data.sections || {});
+    const settings = JSON.stringify({
+      theme: data.theme || {},
+      ...data
+    });
 
     return await prisma.dealerCustomization.upsert({
       where: {
@@ -107,14 +122,16 @@ export class DatabaseService {
         },
       },
       update: {
-        data: JSON.parse(JSON.stringify(data)),
+        sections: sections,
+        settings: settings,
         updatedAt: new Date(),
       },
       create: {
         dealerId,
+        templateId: 'default-template',
+        sections: sections,
+        settings: settings,
         status: 'DRAFT',
-        data: JSON.parse(JSON.stringify(data)),
-        version: 1,
       },
     });
   }
@@ -149,9 +166,10 @@ export class DatabaseService {
       const published = await tx.dealerCustomization.create({
         data: {
           dealerId,
+          templateId: draft.templateId,
+          sections: draft.sections,
+          settings: draft.settings,
           status: 'PUBLISHED',
-          data: JSON.parse(JSON.stringify(draft.data)),
-          version: draft.version + 1,
         },
       });
 

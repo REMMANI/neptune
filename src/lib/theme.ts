@@ -22,26 +22,34 @@ export async function resolveComponent(
 
   const { dealerId, themeKey } = tenantInfo;
 
-  // Shadowing priority:
-  // 1. dealers/<dealerId>/components/<Component>
-  // 2. themes/<themeKey>/components/<Component>
-  // 3. themes/base/components/<Component>
-
-  const possiblePaths = [
-    `@/dealers/${dealerId}/components/${name}`,
-    `@/themes/${themeKey}/components/${name}`,
-    `@/themes/base/components/${name}`,
-  ];
-
-  for (const path of possiblePaths) {
+  // Directly import base theme components for now to fix the issue
+  if (name === 'MainNav') {
     try {
-      const module: ComponentModule = await import(path);
-      const Component = module.default;
-      componentCache.set(cacheKey, Component);
-      return Component;
+      const MainNavComponent = (await import('../themes/base/components/MainNav')).default;
+      componentCache.set(cacheKey, MainNavComponent);
+      return MainNavComponent;
     } catch (error) {
-      // Continue to next path
-      continue;
+      console.log('Failed to import MainNav directly:', error);
+    }
+  }
+
+  if (name === 'Footer') {
+    try {
+      const FooterComponent = (await import('../themes/base/components/Footer')).default;
+      componentCache.set(cacheKey, FooterComponent);
+      return FooterComponent;
+    } catch (error) {
+      console.log('Failed to import Footer directly:', error);
+    }
+  }
+
+  if (name === 'Features') {
+    try {
+      const FeaturesComponent = (await import('../themes/base/components/Features')).default;
+      componentCache.set(cacheKey, FeaturesComponent);
+      return FeaturesComponent;
+    } catch (error) {
+      console.log('Failed to import Features directly:', error);
     }
   }
 
@@ -99,3 +107,6 @@ export function getThemeConfig(themeKey: string) {
 export function clearComponentCache(): void {
   componentCache.clear();
 }
+
+// Clear cache on module load to force fresh imports
+clearComponentCache();

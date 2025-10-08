@@ -1,9 +1,23 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { MenuItem } from '@/types/cms';
 import { Locale } from '@/lib/i18n';
+
+// Simple SVG icons to replace heroicons
+const Bars3Icon = (props: any) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+
+const XMarkIcon = (props: any) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
 
 interface MainNavProps {
   menu: MenuItem[];

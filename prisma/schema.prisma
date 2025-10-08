@@ -16,14 +16,13 @@ model Dealer {
   slug        String   @unique
   domain      String?  @unique
   subdomain   String?  @unique
-  themeKey    String   @default("base")
   status      DealerStatus @default(ACTIVE)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
   customizations DealerCustomization[]
-  adminUsers     AdminUser[]
+  admin          DealerAdmin?
 
   @@map("dealers")
   @@index([domain])
@@ -31,61 +30,73 @@ model Dealer {
   @@index([slug])
 }
 
-model AdminUser {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  name        String
-  password    String   // Hashed password
-  role        AdminRole @default(DEALER_ADMIN)
-  dealerId    String?  // Only required for DEALER_ADMIN
-  permissions Json     @default("[]") // Array of permission strings
-  isActive    Boolean  @default(true)
-  lastLogin   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model DealerAdmin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String   // Hashed password
+  dealerId  String   @unique  // Each dealer has one admin
+  isActive  Boolean  @default(true)
+  lastLogin DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  dealer   Dealer? @relation(fields: [dealerId], references: [id], onDelete: Cascade)
-  sessions AdminSession[]
+  dealer   Dealer @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  sessions DealerSession[]
 
-  @@map("admin_users")
+  @@map("dealer_admins")
   @@index([email])
   @@index([dealerId])
 }
 
-model AdminSession {
+model DealerSession {
   id        String   @id @default(cuid())
-  userId    String
+  adminId   String
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admin DealerAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
-  @@map("admin_sessions")
+  @@map("dealer_sessions")
   @@index([token])
-  @@index([userId])
+  @@index([adminId])
   @@index([expiresAt])
 }
 
 model DealerCustomization {
-  id        String   @id @default(cuid())
-  dealerId  String
-  version   Int      @default(1)
-  status    CustomizationStatus
-  data      Json     // Stores the full configuration JSON
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  dealerId   String
+  templateId String   // Selected template
+  sections   Json     // Array of sections with order and configuration
+  settings   Json     // Global settings like colors, fonts, etc.
+  status     CustomizationStatus
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relations
   dealer Dealer @relation(fields: [dealerId], references: [id], onDelete: Cascade)
 
   @@map("dealer_customizations")
   @@index([dealerId, status])
-  @@index([dealerId, version])
   @@unique([dealerId, status]) // Only one draft and one published per dealer
+}
+
+model Template {
+  id          String @id @default(cuid())
+  name        String
+  description String
+  preview     String // Preview image URL
+  sections    Json   // Default sections configuration
+  settings    Json   // Default settings (colors, fonts, etc.)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("templates")
 }
 
 enum DealerStatus {
@@ -97,9 +108,4 @@ enum DealerStatus {
 enum CustomizationStatus {
   DRAFT
   PUBLISHED
-}
-
-enum AdminRole {
-  SUPER_ADMIN
-  DEALER_ADMIN
 }

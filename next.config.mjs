@@ -1,10 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  experimental: {
-    turbo: {},
-    typedRoutes: true,
-  },
+  turbopack: {},
+  typedRoutes: true,
   images: {
     remotePatterns: [
       {

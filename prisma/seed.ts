@@ -6,75 +6,47 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // Create dealers
-  const premiumMotors = await prisma.dealer.upsert({
-    where: { slug: 'premium-motors' },
-    update: {},
-    create: {
-      name: 'Premium Motors',
-      slug: 'premium-motors',
-      domain: 'premium-motors.com',
-      subdomain: 'premium',
-      themeKey: 'base',
-      status: 'ACTIVE',
-    },
-  });
-
-  const classicAuto = await prisma.dealer.upsert({
-    where: { slug: 'classic-auto' },
-    update: {},
-    create: {
-      name: 'Classic Auto Sales',
-      slug: 'classic-auto',
-      domain: 'classic-auto.com',
-      subdomain: 'classic',
-      themeKey: 't1',
-      status: 'ACTIVE',
-    },
-  });
-
-  // Create admin users
-  console.log('Creating admin users...');
-
   // Hash passwords before storing
   const hashedPassword = hashPassword('admin123');
 
-  console.log('Creating admin users with hashed passwords...');
+  console.log('Creating dealers and admins with raw SQL...');
 
-  // Note: Using $executeRaw to directly insert into database to bypass client issues
+  // Create dealers using raw SQL
   await prisma.$executeRaw`
-    INSERT INTO admin_users (id, email, name, password, role, permissions, "isActive", "createdAt", "updatedAt")
-    VALUES (gen_random_uuid(), 'admin@example.com', 'Super Admin', ${hashedPassword}, 'SUPER_ADMIN', '["*"]', true, NOW(), NOW())
+    INSERT INTO dealers (id, name, slug, domain, subdomain, status, "createdAt", "updatedAt")
+    VALUES (gen_random_uuid(), 'Premium Motors', 'premium-motors', 'premium-motors.com', 'premium', 'ACTIVE', NOW(), NOW())
+    ON CONFLICT (slug) DO NOTHING
+  `;
+
+  await prisma.$executeRaw`
+    INSERT INTO dealers (id, name, slug, domain, subdomain, status, "createdAt", "updatedAt")
+    VALUES (gen_random_uuid(), 'Classic Auto Sales', 'classic-auto', 'classic-auto.com', 'classic', 'ACTIVE', NOW(), NOW())
+    ON CONFLICT (slug) DO NOTHING
+  `;
+
+  // Get dealer IDs
+  const dealers = await prisma.$queryRaw`
+    SELECT id, name, slug FROM dealers WHERE slug IN ('premium-motors', 'classic-auto')
+  ` as any[];
+
+  const premiumMotors = dealers.find((d: any) => d.slug === 'premium-motors');
+  const classicAuto = dealers.find((d: any) => d.slug === 'classic-auto');
+
+  // Create dealer admins using raw SQL
+  await prisma.$executeRaw`
+    INSERT INTO dealer_admins (id, email, name, password, "dealerId", "isActive", "createdAt", "updatedAt")
+    VALUES (gen_random_uuid(), 'dealer@premium-motors.com', 'Premium Motors Admin', ${hashedPassword}, ${premiumMotors.id}, true, NOW(), NOW())
     ON CONFLICT (email) DO NOTHING
   `;
 
-  const superAdmin = await prisma.$queryRaw`
-    SELECT id, email, name FROM admin_users WHERE email = 'admin@example.com'
-  ` as any[];
-
   await prisma.$executeRaw`
-    INSERT INTO admin_users (id, email, name, password, role, "dealerId", permissions, "isActive", "createdAt", "updatedAt")
-    VALUES (gen_random_uuid(), 'dealer@premium-motors.com', 'Premium Motors Admin', ${hashedPassword}, 'DEALER_ADMIN', ${premiumMotors.id}, '["customize", "preview", "publish"]', true, NOW(), NOW())
+    INSERT INTO dealer_admins (id, email, name, password, "dealerId", "isActive", "createdAt", "updatedAt")
+    VALUES (gen_random_uuid(), 'admin@classic-auto.com', 'Classic Auto Admin', ${hashedPassword}, ${classicAuto.id}, true, NOW(), NOW())
     ON CONFLICT (email) DO NOTHING
   `;
-
-  const dealerAdmin = await prisma.$queryRaw`
-    SELECT id, email, name FROM admin_users WHERE email = 'dealer@premium-motors.com'
-  ` as any[];
-
-  await prisma.$executeRaw`
-    INSERT INTO admin_users (id, email, name, password, role, "dealerId", permissions, "isActive", "createdAt", "updatedAt")
-    VALUES (gen_random_uuid(), 'admin@classic-auto.com', 'Classic Auto Admin', ${hashedPassword}, 'DEALER_ADMIN', ${classicAuto.id}, '["customize", "preview", "publish"]', true, NOW(), NOW())
-    ON CONFLICT (email) DO NOTHING
-  `;
-
-  const classicAdmin = await prisma.$queryRaw`
-    SELECT id, email, name FROM admin_users WHERE email = 'admin@classic-auto.com'
-  ` as any[];
 
   console.log('✅ Database seeded successfully!');
   console.log('\n🔑 Admin Credentials:');
-  console.log('Super Admin: admin@example.com / admin123');
   console.log('Premium Motors Admin: dealer@premium-motors.com / admin123');
   console.log('Classic Auto Admin: admin@classic-auto.com / admin123');
   console.log('\n🏢 Dealers created:');

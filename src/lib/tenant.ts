@@ -13,7 +13,9 @@ const FALLBACK_DOMAIN_MAP: Record<string, string> = {
   'premium.example.com': 'premium-motors',
   'classic.example.com': 'classic-auto',
   'localhost:3000': 'premium-motors',
+  'localhost:3001': 'premium-motors',
   '127.0.0.1:3000': 'premium-motors',
+  '127.0.0.1:3001': 'premium-motors',
 };
 
 const DEFAULT_DEALER = { dealerId: 'premium-motors', themeKey: 'base' };
@@ -32,7 +34,7 @@ async function getDealerByDomain(host: string): Promise<{ dealerId: string; them
     const dealer = await findDealerByDomain(host);
 
     if (dealer) {
-      const result = { dealerId: dealer.id, themeKey: dealer.themeKey };
+      const result = { dealerId: dealer.id, themeKey: 'base' }; // Default theme since themeKey removed from schema
       await setCache(cacheKey, result, 600); // Cache for 10 minutes
       return result;
     }
@@ -43,7 +45,7 @@ async function getDealerByDomain(host: string): Promise<{ dealerId: string; them
       const fallbackDealer = await findDealerBySlug(fallbackSlug);
 
       if (fallbackDealer) {
-        const result = { dealerId: fallbackDealer.id, themeKey: fallbackDealer.themeKey };
+        const result = { dealerId: fallbackDealer.id, themeKey: 'base' }; // Default theme
         await setCache(cacheKey, result, 600);
         return result;
       }
@@ -68,7 +70,7 @@ async function getDealerById(dealerId: string): Promise<{ dealerId: string; them
     const dealer = await findDealerById(dealerId);
 
     if (dealer) {
-      const result = { dealerId: dealer.id, themeKey: dealer.themeKey };
+      const result = { dealerId: dealer.id, themeKey: 'base' }; // Default theme
       await setCache(cacheKey, result, 600);
       return result;
     }
