@@ -293,7 +293,7 @@ export function LiveCustomizer({ session, dealer, initialConfig, dealerId }: Liv
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Enhanced Customization Panel */}
-        <div className="w-96 bg-white/80 backdrop-blur-sm border-r border-gray-200/50 overflow-y-auto shadow-xl">
+        <div className="w-1/3 bg-white/80 backdrop-blur-sm border-r border-gray-200/50 overflow-y-auto shadow-xl">
           <div className="p-6 space-y-6">
             <Tabs defaultValue="theme" className="w-full">
               <TabsList className="grid w-full grid-cols-3 bg-gray-100/50 p-1">
