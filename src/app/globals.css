@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
     --color-brand-500: #0ea5e9;
@@ -9,8 +11,55 @@
     --fg: #0f172a;
 }
 
-body {
+@layer base {
+  html {
+    font-family: var(--font-sans), system-ui, sans-serif;
+  }
+
+  body {
+    @apply antialiased;
     background: var(--bg);
     color: var(--fg);
-    font-family: var(--font-sans)
+    font-family: var(--font-sans);
+  }
+}
+
+@layer components {
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .aspect-w-16 {
+    position: relative;
+    padding-bottom: calc(var(--tw-aspect-h) / var(--tw-aspect-w) * 100%);
+  }
+
+  .aspect-h-9 {
+    --tw-aspect-w: 16;
+    --tw-aspect-h: 9;
+  }
+
+  .aspect-w-4 {
+    position: relative;
+    padding-bottom: calc(var(--tw-aspect-h) / var(--tw-aspect-w) * 100%);
+  }
+
+  .aspect-h-3 {
+    --tw-aspect-w: 4;
+    --tw-aspect-h: 3;
+  }
+
+  .aspect-w-16 > *,
+  .aspect-w-4 > * {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
 }

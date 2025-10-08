@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Dealer {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  domain      String?  @unique
+  subdomain   String?  @unique
+  themeKey    String   @default("base")
+  status      DealerStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  customizations DealerCustomization[]
+
+  @@map("dealers")
+  @@index([domain])
+  @@index([subdomain])
+  @@index([slug])
+}
+
+model DealerCustomization {
+  id        String   @id @default(cuid())
+  dealerId  String
+  version   Int      @default(1)
+  status    CustomizationStatus
+  data      Json     // Stores the full configuration JSON
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  dealer Dealer @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+
+  @@map("dealer_customizations")
+  @@index([dealerId, status])
+  @@index([dealerId, version])
+  @@unique([dealerId, status]) // Only one draft and one published per dealer
+}
+
+enum DealerStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum CustomizationStatus {
+  DRAFT
+  PUBLISHED
+}
