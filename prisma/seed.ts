@@ -1,192 +1,90 @@
 import { PrismaClient } from '@prisma/client';
+import { hashPassword } from '../src/lib/hash';
 
 const prisma = new PrismaClient();
-
-const defaultCustomization = {
-  theme: {
-    key: 'base',
-    colors: {
-      primary: '#3b82f6',
-      secondary: '#64748b',
-      accent: '#f59e0b',
-    },
-    typography: {
-      headingFont: 'Inter',
-      bodyFont: 'Inter',
-    },
-    spacing: {
-      containerWidth: '1280px',
-      sectionPadding: '4rem',
-    },
-  },
-  sections: {
-    showHero: true,
-    showFeatures: true,
-    showFooter: true,
-    showInventoryLink: true,
-    showTestimonials: false,
-    showGallery: false,
-    showContactForm: true,
-  },
-  menu: [
-    {
-      id: '1',
-      label: 'Home',
-      slug: '',
-      href: null,
-      order: 0,
-      children: [],
-    },
-    {
-      id: '2',
-      label: 'Inventory',
-      slug: 'inventory',
-      href: null,
-      order: 1,
-      children: [],
-    },
-    {
-      id: '3',
-      label: 'About',
-      slug: 'about',
-      href: null,
-      order: 2,
-      children: [],
-    },
-    {
-      id: '4',
-      label: 'Contact',
-      slug: 'contact',
-      href: null,
-      order: 3,
-      children: [],
-    },
-  ],
-  tokens: {
-    borderRadius: '8px',
-    shadowSm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-    shadowMd: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-  },
-};
 
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // Create demo dealers
-  const dealer1 = await prisma.dealer.upsert({
+  // Create dealers
+  const premiumMotors = await prisma.dealer.upsert({
     where: { slug: 'premium-motors' },
     update: {},
     create: {
       name: 'Premium Motors',
       slug: 'premium-motors',
-      domain: 'premium.example.com',
+      domain: 'premium-motors.com',
       subdomain: 'premium',
-      themeKey: 't1',
-      status: 'ACTIVE',
-    },
-  });
-
-  const dealer2 = await prisma.dealer.upsert({
-    where: { slug: 'classic-auto' },
-    update: {},
-    create: {
-      name: 'Classic Auto',
-      slug: 'classic-auto',
-      domain: 'classic.example.com',
-      subdomain: 'classic',
       themeKey: 'base',
       status: 'ACTIVE',
     },
   });
 
-  // Create published customizations
-  await prisma.dealerCustomization.upsert({
-    where: {
-      dealerId_status: {
-        dealerId: dealer1.id,
-        status: 'PUBLISHED',
-      },
-    },
+  const classicAuto = await prisma.dealer.upsert({
+    where: { slug: 'classic-auto' },
     update: {},
     create: {
-      dealerId: dealer1.id,
-      status: 'PUBLISHED',
-      version: 1,
-      data: {
-        ...defaultCustomization,
-        theme: {
-          ...defaultCustomization.theme,
-          key: 't1',
-          colors: {
-            primary: '#dc2626',
-            secondary: '#64748b',
-            accent: '#f59e0b',
-          },
-        },
-        sections: {
-          ...defaultCustomization.sections,
-          showTestimonials: true,
-        },
-      },
+      name: 'Classic Auto Sales',
+      slug: 'classic-auto',
+      domain: 'classic-auto.com',
+      subdomain: 'classic',
+      themeKey: 't1',
+      status: 'ACTIVE',
     },
   });
 
-  await prisma.dealerCustomization.upsert({
-    where: {
-      dealerId_status: {
-        dealerId: dealer2.id,
-        status: 'PUBLISHED',
-      },
-    },
-    update: {},
-    create: {
-      dealerId: dealer2.id,
-      status: 'PUBLISHED',
-      version: 1,
-      data: defaultCustomization,
-    },
-  });
+  // Create admin users
+  console.log('Creating admin users...');
 
-  // Create draft customizations
-  await prisma.dealerCustomization.upsert({
-    where: {
-      dealerId_status: {
-        dealerId: dealer1.id,
-        status: 'DRAFT',
-      },
-    },
-    update: {},
-    create: {
-      dealerId: dealer1.id,
-      status: 'DRAFT',
-      version: 2,
-      data: {
-        ...defaultCustomization,
-        theme: {
-          ...defaultCustomization.theme,
-          key: 't1',
-          colors: {
-            primary: '#dc2626',
-            secondary: '#64748b',
-            accent: '#f59e0b',
-          },
-        },
-        sections: {
-          ...defaultCustomization.sections,
-          showTestimonials: true,
-          showGallery: true, // Draft change
-        },
-      },
-    },
-  });
+  // Hash passwords before storing
+  const hashedPassword = hashPassword('admin123');
 
-  console.log('✅ Database seeded successfully');
-  console.log(`Created dealers: ${dealer1.name}, ${dealer2.name}`);
+  console.log('Creating admin users with hashed passwords...');
+
+  // Note: Using $executeRaw to directly insert into database to bypass client issues
+  await prisma.$executeRaw`
+    INSERT INTO admin_users (id, email, name, password, role, permissions, "isActive", "createdAt", "updatedAt")
+    VALUES (gen_random_uuid(), 'admin@example.com', 'Super Admin', ${hashedPassword}, 'SUPER_ADMIN', '["*"]', true, NOW(), NOW())
+    ON CONFLICT (email) DO NOTHING
+  `;
+
+  const superAdmin = await prisma.$queryRaw`
+    SELECT id, email, name FROM admin_users WHERE email = 'admin@example.com'
+  ` as any[];
+
+  await prisma.$executeRaw`
+    INSERT INTO admin_users (id, email, name, password, role, "dealerId", permissions, "isActive", "createdAt", "updatedAt")
+    VALUES (gen_random_uuid(), 'dealer@premium-motors.com', 'Premium Motors Admin', ${hashedPassword}, 'DEALER_ADMIN', ${premiumMotors.id}, '["customize", "preview", "publish"]', true, NOW(), NOW())
+    ON CONFLICT (email) DO NOTHING
+  `;
+
+  const dealerAdmin = await prisma.$queryRaw`
+    SELECT id, email, name FROM admin_users WHERE email = 'dealer@premium-motors.com'
+  ` as any[];
+
+  await prisma.$executeRaw`
+    INSERT INTO admin_users (id, email, name, password, role, "dealerId", permissions, "isActive", "createdAt", "updatedAt")
+    VALUES (gen_random_uuid(), 'admin@classic-auto.com', 'Classic Auto Admin', ${hashedPassword}, 'DEALER_ADMIN', ${classicAuto.id}, '["customize", "preview", "publish"]', true, NOW(), NOW())
+    ON CONFLICT (email) DO NOTHING
+  `;
+
+  const classicAdmin = await prisma.$queryRaw`
+    SELECT id, email, name FROM admin_users WHERE email = 'admin@classic-auto.com'
+  ` as any[];
+
+  console.log('✅ Database seeded successfully!');
+  console.log('\n🔑 Admin Credentials:');
+  console.log('Super Admin: admin@example.com / admin123');
+  console.log('Premium Motors Admin: dealer@premium-motors.com / admin123');
+  console.log('Classic Auto Admin: admin@classic-auto.com / admin123');
+  console.log('\n🏢 Dealers created:');
+  console.log(`- ${premiumMotors.name} (${premiumMotors.slug})`);
+  console.log(`- ${classicAuto.name} (${classicAuto.slug})`);
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Error seeding database:', e);
+    console.error('❌ Seeding failed:', e);
     process.exit(1);
   })
   .finally(async () => {

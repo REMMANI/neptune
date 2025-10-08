@@ -23,11 +23,51 @@ model Dealer {
 
   // Relations
   customizations DealerCustomization[]
+  adminUsers     AdminUser[]
 
   @@map("dealers")
   @@index([domain])
   @@index([subdomain])
   @@index([slug])
+}
+
+model AdminUser {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  password    String   // Hashed password
+  role        AdminRole @default(DEALER_ADMIN)
+  dealerId    String?  // Only required for DEALER_ADMIN
+  permissions Json     @default("[]") // Array of permission strings
+  isActive    Boolean  @default(true)
+  lastLogin   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  dealer   Dealer? @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  sessions AdminSession[]
+
+  @@map("admin_users")
+  @@index([email])
+  @@index([dealerId])
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("admin_sessions")
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model DealerCustomization {
@@ -57,4 +97,9 @@ enum DealerStatus {
 enum CustomizationStatus {
   DRAFT
   PUBLISHED
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  DEALER_ADMIN
 }

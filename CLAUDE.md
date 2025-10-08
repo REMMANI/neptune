@@ -59,3 +59,57 @@ This is a multi-tenant Next.js application that dynamically routes based on subd
 - Husky pre-commit hooks with lint-staged for code quality
 - Standalone deployment mode for production
 - All images domains allowed in Next.js config (consider restricting for production)
+
+
+neptune/
+  ├── prisma/
+  │   ├── schema.prisma
+  │   ├── migrations/
+  │   │   └── 001_init.sql
+  │   └── seed.ts
+  ├── src/
+  │   ├── lib/
+  │   │   ├── prisma.ts
+  │   │   ├── redis.ts
+  │   │   ├── tenant.ts (updated)
+  │   │   ├── config.ts
+  │   │   └── cache.ts
+  │   ├── types/
+  │   │   ├── dealer.ts
+  │   │   └── customization.ts
+  │   ├── app/
+  │   │   ├── api/
+  │   │   │   ├── dealers/
+  │   │   │   │   └── [id]/
+  │   │   │   │       ├── customizations/
+  │   │   │   │       │   ├── draft/
+  │   │   │   │       │   │   └── route.ts
+  │   │   │   │       │   └── publish/
+  │   │   │   │       │       └── route.ts
+  │   │   │   │       └── config/
+  │   │   │   │           └── route.ts
+  │   │   │   ├── cms/
+  │   │   │   │   └── [proxy routes]
+  │   │   │   └── inventory/
+  │   │   │       └── [proxy routes]
+  │   │   ├── [locale]/
+  │   │   │   ├── layout.tsx (updated)
+  │   │   │   ├── [...slug]/
+  │   │   │   │   └── page.tsx
+  │   │   │   └── inventory/
+  │   │   │       ├── page.tsx
+  │   │   │       └── [id]/
+  │   │   │           └── page.tsx
+  │   │   └── admin/
+  │   │       └── customize/
+  │   │           └── page.tsx
+  │   └── components/
+  │       ├── customizer/
+  │       │   ├── CustomizerUI.tsx
+  │       │   ├── PreviewFrame.tsx
+  │       │   └── ControlPanel.tsx
+  │       └── blocks/
+  │           └── RenderBlocks.tsx (updated)
+  ├── deploy/
+  │   └── app.js (updated)
+  └── package.json (updated)
