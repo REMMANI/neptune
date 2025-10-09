@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { validateAdminCredentials, createSession } from '@/lib/auth';
+import { validateDealerCredentials, createSession } from '@/lib/auth';
 import { getCurrentTenant } from '@/lib/tenant';
 
-const LoginSchema = z.object({
+const DealerLoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
@@ -11,22 +11,22 @@ const LoginSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password } = LoginSchema.parse(body);
+    const { email, password } = DealerLoginSchema.parse(body);
 
-    // Validate credentials
-    const user = await validateAdminCredentials(email, password);
-    if (!user) {
+    // Validate dealer credentials
+    const admin = await validateDealerCredentials(email, password);
+    if (!admin) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       );
     }
 
-    // Get current tenant (dealer) from domain
+    // Get current tenant (dealership) from domain
     const tenant = await getCurrentTenant();
 
     // Ensure dealer admin can only access their dealer
-    if (user.dealerId !== tenant.dealerId) {
+    if (admin.dealerId !== tenant.dealerId) {
       return NextResponse.json(
         { error: 'Access denied for this dealer' },
         { status: 403 }
@@ -34,20 +34,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Create session
-    const token = await createSession(user);
+    const sessionToken = await createSession(admin);
 
     // Set secure HTTP-only cookie
     const response = NextResponse.json({
       success: true,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        dealerId: user.dealerId,
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        dealerId: admin.dealerId,
+        dealer: admin.dealer,
       },
     });
 
-    response.cookies.set('admin-session', token, {
+    response.cookies.set('dealer-session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Dealer login error:', error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

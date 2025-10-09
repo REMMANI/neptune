@@ -11,101 +11,121 @@ datasource db {
 }
 
 model Dealer {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  domain      String?  @unique
-  subdomain   String?  @unique
-  status      DealerStatus @default(ACTIVE)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                    String                    @id @default(cuid())
+  externalId            String                    @unique // ID from external API
+  name                  String
+  slug                  String                    @unique
+  domain                String?                   @unique
+  subdomain             String?                   @unique
+  status                DealerStatus              @default(ACTIVE)
+  isWebsiteEnabled      Boolean                   @default(true)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  // Authentication
+  adminAuth             DealerAdmin?
 
   // Relations
-  customizations DealerCustomization[]
-  admin          DealerAdmin?
+  customizations        Customization[]
 
   @@map("dealers")
   @@index([domain])
   @@index([subdomain])
   @@index([slug])
+  @@index([status])
+  @@index([externalId])
 }
 
 model DealerAdmin {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String   // Hashed password
-  dealerId  String   @unique  // Each dealer has one admin
-  isActive  Boolean  @default(true)
-  lastLogin DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String              @id @default(cuid())
+  dealerId          String              @unique
+  email             String              @unique
+  name              String
+  hashedPassword    String
+  isActive          Boolean             @default(true)
+  lastLoginAt       DateTime?
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   // Relations
-  dealer   Dealer @relation(fields: [dealerId], references: [id], onDelete: Cascade)
-  sessions DealerSession[]
+  dealer            Dealer              @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  sessions          AdminSession[]
 
   @@map("dealer_admins")
   @@index([email])
   @@index([dealerId])
+  @@index([resetToken])
 }
 
-model DealerSession {
-  id        String   @id @default(cuid())
-  adminId   String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model AdminSession {
+  id            String           @id @default(cuid())
+  adminId       String
+  token         String           @unique
+  expiresAt     DateTime
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   // Relations
-  admin DealerAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  admin         DealerAdmin      @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
-  @@map("dealer_sessions")
+  @@map("admin_sessions")
   @@index([token])
   @@index([adminId])
   @@index([expiresAt])
 }
 
-model DealerCustomization {
-  id         String   @id @default(cuid())
-  dealerId   String
-  templateId String   // Selected template
-  sections   Json     // Array of sections with order and configuration
-  settings   Json     // Global settings like colors, fonts, etc.
-  status     CustomizationStatus
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+model Customization {
+  id                    String                @id @default(cuid())
+  dealerId              String
+  templateId            String                // Reference to Template
+  sections              Json                  // Array of sections with order and configuration
+  branding              Json                  // Brand colors, fonts, logos, etc.
+  seoSettings           Json                  // Meta descriptions, keywords, etc.
+  status                PublicationStatus
+  publishedAt           DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
 
   // Relations
-  dealer Dealer @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  dealer                Dealer                @relation(fields: [dealerId], references: [id], onDelete: Cascade)
 
-  @@map("dealer_customizations")
+  @@map("customizations")
   @@index([dealerId, status])
   @@unique([dealerId, status]) // Only one draft and one published per dealer
 }
 
 model Template {
-  id          String @id @default(cuid())
-  name        String
-  description String
-  preview     String // Preview image URL
-  sections    Json   // Default sections configuration
-  settings    Json   // Default settings (colors, fonts, etc.)
-  isActive    Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  name                  String
+  description           String
+  previewImage          String   // Preview image URL
+  category              String   @default("automotive")
+  defaultSections       Json     // Default sections configuration
+  defaultBranding       Json     // Default brand settings (colors, fonts, etc.)
+  isAvailable           Boolean  @default(true)
+  sortOrder             Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@map("templates")
+  @@index([isAvailable])
+  @@index([category])
+  @@index([sortOrder])
 }
 
 enum DealerStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+  PENDING
 }
 
-enum CustomizationStatus {
+enum PublicationStatus {
   DRAFT
   PUBLISHED
+  ARCHIVED
 }

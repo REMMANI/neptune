@@ -2,21 +2,28 @@ import 'server-only';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { NextRequest } from 'next/server';
-import { prisma } from './prisma';
 import { getCurrentTenant } from './tenant';
 import { hashPassword as hash, validatePassword as validate } from './hash';
+import { findDealerAdminByEmail, createAdminSession, findValidSession, updateAdminLastLogin } from './db';
+import { prisma } from './prisma';
 
-export type AdminUser = {
+export type DealerAdmin = {
   id: string;
   email: string;
   name: string;
   dealerId: string;
   isActive: boolean;
+  dealer?: {
+    id: string;
+    name: string;
+    slug: string;
+    status: string;
+  };
 };
 
 export type AuthSession = {
   id: string;
-  user: AdminUser;
+  user: DealerAdmin;
   token: string;
   expiresAt: Date;
 };
@@ -25,56 +32,41 @@ export type AuthSession = {
 export const hashPassword = hash;
 const validatePassword = validate;
 
-export async function validateAdminCredentials(email: string, password: string): Promise<AdminUser | null> {
+export async function validateDealerCredentials(email: string, password: string): Promise<DealerAdmin | null> {
   try {
-    // Use raw SQL query to get dealer admin
-    const result = await prisma.$queryRaw`
-      SELECT id, email, name, password, "dealerId", "isActive"
-      FROM dealer_admins
-      WHERE email = ${email} AND "isActive" = true
-      LIMIT 1
-    ` as any[];
+    const admin = await findDealerAdminByEmail(email);
 
-    if (!result || result.length === 0) {
+    if (!admin) {
       return null;
     }
 
-    const dealerAdmin = result[0];
-
-    if (!validatePassword(password, dealerAdmin.password)) {
+    if (!validatePassword(password, admin.hashedPassword)) {
       return null;
     }
 
-    // Update last login using raw SQL
-    await prisma.$executeRaw`
-      UPDATE dealer_admins
-      SET "lastLogin" = NOW(), "updatedAt" = NOW()
-      WHERE id = ${dealerAdmin.id}
-    `;
+    // Update last login
+    await updateAdminLastLogin(admin.id);
 
     return {
-      id: dealerAdmin.id,
-      email: dealerAdmin.email,
-      name: dealerAdmin.name,
-      dealerId: dealerAdmin.dealerId,
-      isActive: dealerAdmin.isActive,
+      id: admin.id,
+      email: admin.email,
+      name: admin.name,
+      dealerId: admin.dealerId,
+      isActive: admin.isActive,
+      dealer: admin.dealer,
     };
   } catch (error) {
-    console.error('Error validating admin credentials:', error);
+    console.error('Error validating dealer credentials:', error);
     return null;
   }
 }
 
-export async function createSession(user: AdminUser): Promise<string> {
+export async function createSession(user: DealerAdmin): Promise<string> {
   try {
     const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
     const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000)); // 24 hours
 
-    // Use raw SQL to create session
-    await prisma.$executeRaw`
-      INSERT INTO dealer_sessions (id, "adminId", token, "expiresAt", "createdAt", "updatedAt")
-      VALUES (gen_random_uuid(), ${user.id}, ${token}, ${expiresAt}, NOW(), NOW())
-    `;
+    await createAdminSession(user.id, token, expiresAt);
 
     return token;
   } catch (error) {
@@ -85,47 +77,29 @@ export async function createSession(user: AdminUser): Promise<string> {
 
 export async function getSession(token: string): Promise<AuthSession | null> {
   try {
-    // Use raw SQL to get session with admin data
-    const result = await prisma.$queryRaw`
-      SELECT
-        s.id, s.token, s."expiresAt",
-        a.id as admin_id, a.email, a.name, a."dealerId", a."isActive"
-      FROM dealer_sessions s
-      JOIN dealer_admins a ON s."adminId" = a.id
-      WHERE s.token = ${token}
-      LIMIT 1
-    ` as any[];
+    const session = await findValidSession(token);
 
-    if (!result || result.length === 0) {
-      return null;
-    }
-
-    const sessionData = result[0];
-
-    // Check expiration
-    if (new Date() > sessionData.expiresAt) {
-      await prisma.$executeRaw`
-        DELETE FROM dealer_sessions WHERE id = ${sessionData.id}
-      `;
+    if (!session) {
       return null;
     }
 
     // Check if user is still active
-    if (!sessionData.isActive) {
+    if (!session.admin.isActive) {
       return null;
     }
 
     return {
-      id: sessionData.id,
+      id: session.id,
       user: {
-        id: sessionData.admin_id,
-        email: sessionData.email,
-        name: sessionData.name,
-        dealerId: sessionData.dealerId,
-        isActive: sessionData.isActive,
+        id: session.admin.id,
+        email: session.admin.email,
+        name: session.admin.name,
+        dealerId: session.admin.dealerId,
+        isActive: session.admin.isActive,
+        dealer: session.admin.dealer,
       },
-      token: sessionData.token,
-      expiresAt: sessionData.expiresAt,
+      token: session.token,
+      expiresAt: session.expiresAt,
     };
   } catch (error) {
     console.error('Error getting session:', error);
@@ -136,7 +110,7 @@ export async function getSession(token: string): Promise<AuthSession | null> {
 export async function deleteSession(token: string): Promise<void> {
   try {
     await prisma.$executeRaw`
-      DELETE FROM dealer_sessions WHERE token = ${token}
+      DELETE FROM admin_sessions WHERE token = ${token}
     `;
   } catch (error) {
     console.error('Error deleting session:', error);
@@ -144,7 +118,7 @@ export async function deleteSession(token: string): Promise<void> {
 }
 
 export async function getSessionFromRequest(request: NextRequest): Promise<AuthSession | null> {
-  const token = request.cookies.get('admin-session')?.value;
+  const token = request.cookies.get('dealer-session')?.value;
   if (!token) return null;
 
   return await getSession(token);
@@ -159,7 +133,7 @@ export async function requireAuth(): Promise<AuthSession> {
   }
 
   // Parse session cookie
-  const sessionMatch = cookie.match(/admin-session=([^;]+)/);
+  const sessionMatch = cookie.match(/dealer-session=([^;]+)/);
   if (!sessionMatch) {
     redirect('/admin/login');
   }
@@ -174,7 +148,7 @@ export async function requireAuth(): Promise<AuthSession> {
   return session;
 }
 
-export async function requireDealerAuth(): Promise<{ session: AuthSession; dealerId: string }> {
+export async function requireDealerAccess(): Promise<{ session: AuthSession; dealerId: string }> {
   const session = await requireAuth();
   const tenant = await getCurrentTenant();
 
@@ -198,3 +172,18 @@ export async function isAuthenticatedForDealer(request: NextRequest, dealerId: s
 
   return await validateDealerAccess(dealerId, session);
 }
+
+// Backward compatibility exports
+export const validateAdminCredentials = validateDealerCredentials;
+export const createDealerSession = createSession;
+export const getDealerSession = getSession;
+export const deleteDealerSession = deleteSession;
+export const getDealerSessionFromRequest = getSessionFromRequest;
+export const requireDealerAuth = requireAuth;
+export const validateDealershipAccess = validateDealerAccess;
+export const isAuthenticatedForDealership = isAuthenticatedForDealer;
+
+// Export types for backward compatibility
+export type DealerAdminUser = DealerAdmin;
+export type DealerAuthSession = AuthSession;
+export type AdminUser = DealerAdmin;

@@ -1,6 +1,6 @@
 import 'server-only';
 import { DealerConfig, DealerConfigSchema } from '@/types/customization';
-import { findDealerById, getDealerCustomization } from './db';
+import { findDealerById, getCustomization } from './db';
 // import { getFromCache, setCache } from './redis';
 
 // Base theme configurations
@@ -152,24 +152,44 @@ export async function getDealerConfig(
     // Layer 1: Base default config
     let config = { ...DEFAULT_CONFIG };
 
-    // Layer 2: Base theme config
-    const baseTheme = BASE_THEMES[dealer.themeKey];
+    // Layer 2: Base theme config (using default base theme for now)
+    const baseTheme = BASE_THEMES['base'];
     if (baseTheme) {
       config = deepMerge(config, baseTheme);
     }
 
     // Layer 3: Published customization (always applied)
-    const publishedCustomization = await getDealerCustomization(dealerId, 'PUBLISHED');
+    const publishedCustomization = await getCustomization(dealerId, 'PUBLISHED');
 
     if (publishedCustomization) {
-      config = deepMerge(config, publishedCustomization.data);
+      // Parse JSON fields from our customization
+      try {
+        const customData = {
+          ...(publishedCustomization.sections ? JSON.parse(publishedCustomization.sections) : {}),
+          ...(publishedCustomization.branding ? JSON.parse(publishedCustomization.branding) : {}),
+          ...(publishedCustomization.seoSettings ? JSON.parse(publishedCustomization.seoSettings) : {}),
+        };
+        config = deepMerge(config, customData);
+      } catch (error) {
+        console.warn('Error parsing customization data:', error);
+      }
     }
 
     // Layer 4: Draft customization (only if preview mode)
     if (options.preview) {
-      const draftCustomization = await getDealerCustomization(dealerId, 'DRAFT');
+      const draftCustomization = await getCustomization(dealerId, 'DRAFT');
       if (draftCustomization) {
-        config = deepMerge(config, draftCustomization.data);
+        // Parse JSON fields from our draft customization
+        try {
+          const customData = {
+            ...(draftCustomization.sections ? JSON.parse(draftCustomization.sections) : {}),
+            ...(draftCustomization.branding ? JSON.parse(draftCustomization.branding) : {}),
+            ...(draftCustomization.seoSettings ? JSON.parse(draftCustomization.seoSettings) : {}),
+          };
+          config = deepMerge(config, customData);
+        } catch (error) {
+          console.warn('Error parsing draft customization data:', error);
+        }
       }
     }
 
