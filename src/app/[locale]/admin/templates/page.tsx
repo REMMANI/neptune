@@ -1,9 +1,10 @@
-import { requireDealerAuth } from '@/lib/auth';
+import { requireDealerAccess } from '@/lib/auth';
 import { TemplateSelector } from './TemplateSelector';
+import { log } from 'node:console';
 
 export default async function TemplatesPage() {
-  const { session, dealerId } = await requireDealerAuth();
-
+  const { session, externalDealerId, siteConfigId } = await requireDealerAccess();
+  console.log('Rendering TemplatesPage for dealer:', externalDealerId);
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-blue-50">
       <div className="container mx-auto px-4 py-8">
@@ -16,7 +17,7 @@ export default async function TemplatesPage() {
           </p>
         </div>
 
-        <TemplateSelector session={session} dealerId={dealerId} />
+        <TemplateSelector session={session} externalDealerId={externalDealerId} siteConfigId={siteConfigId} />
       </div>
     </div>
   );

@@ -11,13 +11,14 @@ export type DealerAdmin = {
   id: string;
   email: string;
   name: string;
-  dealerId: string;
+  siteConfigId: string; // Changed from dealerId
   isActive: boolean;
-  dealer?: {
+  siteConfig?: {
     id: string;
-    name: string;
+    externalDealerId: string;
     slug: string;
-    status: string;
+    subdomain: string;
+    isActive: boolean;
   };
 };
 
@@ -51,9 +52,9 @@ export async function validateDealerCredentials(email: string, password: string)
       id: admin.id,
       email: admin.email,
       name: admin.name,
-      dealerId: admin.dealerId,
+      siteConfigId: admin.siteConfigId,
       isActive: admin.isActive,
-      dealer: admin.dealer,
+      siteConfig: admin.siteConfig,
     };
   } catch (error) {
     console.error('Error validating dealer credentials:', error);
@@ -94,9 +95,9 @@ export async function getSession(token: string): Promise<AuthSession | null> {
         id: session.admin.id,
         email: session.admin.email,
         name: session.admin.name,
-        dealerId: session.admin.dealerId,
+        siteConfigId: session.admin.siteConfigId,
         isActive: session.admin.isActive,
-        dealer: session.admin.dealer,
+        siteConfig: session.admin.siteConfig,
       },
       token: session.token,
       expiresAt: session.expiresAt,
@@ -148,29 +149,37 @@ export async function requireAuth(): Promise<AuthSession> {
   return session;
 }
 
-export async function requireDealerAccess(): Promise<{ session: AuthSession; dealerId: string }> {
+export async function requireDealerAccess(): Promise<{
+  session: AuthSession;
+  externalDealerId: string;
+  siteConfigId: string;
+}> {
   const session = await requireAuth();
   const tenant = await getCurrentTenant();
 
-  // Dealer admins can only access their own dealer
-  if (session.user.dealerId !== tenant.dealerId) {
+  // Dealer admins can only access their own site config
+  if (session.user.siteConfigId !== tenant.siteConfigId) {
     redirect('/admin/unauthorized');
   }
 
-  return { session, dealerId: tenant.dealerId };
+  return {
+    session,
+    externalDealerId: tenant.externalDealerId,
+    siteConfigId: tenant.siteConfigId
+  };
 }
 
-export async function validateDealerAccess(dealerId: string, session: AuthSession): Promise<boolean> {
-  // Dealer admin can only access their own dealer
-  return session.user.dealerId === dealerId;
+export async function validateDealerAccess(siteConfigId: string, session: AuthSession): Promise<boolean> {
+  // Dealer admin can only access their own site config
+  return session.user.siteConfigId === siteConfigId;
 }
 
 // Middleware helper
-export async function isAuthenticatedForDealer(request: NextRequest, dealerId: string): Promise<boolean> {
+export async function isAuthenticatedForDealer(request: NextRequest, siteConfigId: string): Promise<boolean> {
   const session = await getSessionFromRequest(request);
   if (!session) return false;
 
-  return await validateDealerAccess(dealerId, session);
+  return await validateDealerAccess(siteConfigId, session);
 }
 
 // Backward compatibility exports

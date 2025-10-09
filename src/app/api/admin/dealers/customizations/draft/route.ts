@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAuth, hasPermission, isAuthenticatedForDealer } from '@/lib/auth';
-import { findDealerById, getDealerCustomization, upsertDraftCustomization } from '@/lib/db';
+import { findDealerById, getCustomization, upsertDraftCustomization } from '@/lib/db';
 import { DealerConfigSchema } from '@/types/customization';
 import { invalidateDealerCache } from '@/lib/config';
 
@@ -36,7 +36,7 @@ export async function POST(
     const partialConfig = PartialConfigSchema.parse(body);
 
     // Get existing draft customization
-    const existingDraft = await getDealerCustomization(dealerId, 'DRAFT');
+    const existingDraft = await getCustomization(dealerId, 'DRAFT');
 
     let finalData = partialConfig;
 
@@ -45,7 +45,7 @@ export async function POST(
       finalData = deepMergePartial(existingDraft.data, partialConfig);
     } else {
       // Merge with published version as base
-      const publishedCustomization = await getDealerCustomization(dealerId, 'PUBLISHED');
+      const publishedCustomization = await getCustomization(dealerId, 'PUBLISHED');
       const baseData = publishedCustomization?.data || {};
       finalData = deepMergePartial(baseData, partialConfig);
     }
@@ -93,7 +93,7 @@ export async function GET(
       );
     }
 
-    const draftCustomization = await getDealerCustomization(dealerId, 'DRAFT');
+    const draftCustomization = await getCustomization(dealerId, 'DRAFT');
 
     if (!draftCustomization) {
       return NextResponse.json(
@@ -130,7 +130,7 @@ export async function DELETE(
       );
     }
 
-    const draftCustomization = await getDealerCustomization(dealerId, 'DRAFT');
+    const draftCustomization = await getCustomization(dealerId, 'DRAFT');
 
     if (!draftCustomization) {
       return NextResponse.json(

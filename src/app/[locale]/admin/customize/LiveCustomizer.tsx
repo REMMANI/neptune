@@ -5,30 +5,24 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Slider } from '@/components/ui/slider';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
 import type { AuthSession } from '@/lib/auth';
 import type { DealerConfig } from '@/types/customization';
+import type { DealerInfo } from '@/lib/dealer-service';
 import { SectionManager } from './SectionManager';
 
 interface LiveCustomizerProps {
   session: AuthSession;
-  dealer: {
-    id: string;
-    slug: string;
-    themeKey: string;
-  };
+  dealer: DealerInfo;
   initialConfig: DealerConfig;
-  dealerId: string;
+  externalDealerId: string;
+  siteConfigId: string;
 }
 
-export function LiveCustomizer({ session, dealer, initialConfig, dealerId }: LiveCustomizerProps) {
+export function LiveCustomizer({ session, dealer, initialConfig, externalDealerId, siteConfigId }: LiveCustomizerProps) {
   const [config, setConfig] = useState(initialConfig);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -41,9 +35,10 @@ export function LiveCustomizer({ session, dealer, initialConfig, dealerId }: Liv
   useEffect(() => {
     if (!previewUrl) {
       const baseUrl = window.location.origin;
-      setPreviewUrl(`${baseUrl}/en?preview=1&dealer=${dealer.slug}`);
+      // Use external dealer ID for preview URL since we don't store slugs locally
+      setPreviewUrl(`${baseUrl}/en?preview=1&dealer=${externalDealerId}`);
     }
-  }, [dealer.slug, previewUrl]);
+  }, [externalDealerId, previewUrl]);
 
   // Auto-save draft changes with better debouncing
   const saveDraft = useCallback(async (updatedConfig: DealerConfig) => {
@@ -51,7 +46,7 @@ export function LiveCustomizer({ session, dealer, initialConfig, dealerId }: Liv
 
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/admin/dealers/${dealerId}/customizations/draft`, {
+      const response = await fetch(`/api/admin/dealers/${externalDealerId}/customizations/draft`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,11 +74,11 @@ export function LiveCustomizer({ session, dealer, initialConfig, dealerId }: Liv
     } finally {
       setIsSaving(false);
     }
-  }, [dealerId, isSaving, toast]);
+  }, [externalDealerId, isSaving, toast]);
 
   // Improved debouncing with ref to track latest config
   const configRef = useRef(config);
-  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const saveTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     configRef.current = config;
@@ -167,7 +162,7 @@ export function LiveCustomizer({ session, dealer, initialConfig, dealerId }: Liv
 
     setIsPublishing(true);
     try {
-      const response = await fetch(`/api/admin/dealers/${dealerId}/customizations/publish`, {
+      const response = await fetch(`/api/admin/dealers/${externalDealerId}/customizations/publish`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -218,11 +213,11 @@ export function LiveCustomizer({ session, dealer, initialConfig, dealerId }: Liv
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                  {dealer.slug.slice(0, 2).toUpperCase()}
+                  {dealer.displayName?.slice(0, 2).toUpperCase() || 'DL'}
                 </div>
                 <div>
                   <h1 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    {dealer.slug} Customizer
+                    {dealer.displayName} Customizer
                   </h1>
                   <div className="flex items-center space-x-2">
                     <Badge variant="secondary" className="text-xs">
@@ -447,7 +442,7 @@ export function LiveCustomizer({ session, dealer, initialConfig, dealerId }: Liv
                   </CardHeader>
                   <CardContent>
                     <SectionManager
-                      sections={config.sectionOrder || Object.entries(config.sections).map(([key, value], index) => ({
+                      sections={Object.entries(config.sections).map(([key, value], index) => ({
                         id: key,
                         name: key.replace(/([A-Z])/g, ' $1').replace(/^show/, '').trim(),
                         type: key.replace('show', '').toLowerCase(),

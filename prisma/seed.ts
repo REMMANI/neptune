@@ -1,14 +1,27 @@
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/lib/hash';
 import { externalDealerApi, mapExternalToInternal } from '../src/lib/external-dealer-api';
+import { seedThemes } from './seed-themes';
 
 const prisma = new PrismaClient();
 
+// Helper function to create slug from display name
+function createSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 async function seedDatabase() {
-  console.log('🌱 Starting dealer database seeding...');
+  console.log('🌱 Starting database seeding...');
+
+  // First seed themes
+  await seedThemes();
 
   // Fetch active dealers from external API
-  console.log('📡 Fetching dealer data from external API...');
+  console.log('\n📡 Fetching dealer data from external API...');
   const externalDealers = await externalDealerApi.getActiveDealers();
 
   if (externalDealers.length === 0) {
@@ -21,133 +34,172 @@ async function seedDatabase() {
   // Default admin password
   const adminPassword = hashPassword('admin123');
 
+  // Get default theme
+  const defaultTheme = await prisma.theme.findFirst({
+    where: { isDefault: true }
+  });
+
+  if (!defaultTheme) {
+    throw new Error('No default theme found');
+  }
+
   for (const externalDealer of externalDealers) {
-    const dealerData = mapExternalToInternal(externalDealer);
+    const dealerSlug = createSlug(externalDealer.businessInfo.displayName);
+    const subdomain = externalDealer.businessInfo.displayName
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .split('-')[0];
 
     console.log(`\n🏢 Processing: ${externalDealer.businessInfo.displayName}...`);
 
-    // Create dealer and admin in transaction
-    const dealerId = await prisma.$transaction(async (tx) => {
-      // Insert dealer
-      await tx.$executeRaw`
-        INSERT INTO dealers (
-          id,
-          "externalId",
-          "name",
-          "slug",
-          "domain",
-          "subdomain",
-          "status",
-          "isWebsiteEnabled",
-          "createdAt",
-          "updatedAt"
-        )
-        VALUES (
-          gen_random_uuid(),
-          ${dealerData.externalId},
-          ${dealerData.name},
-          ${dealerData.slug},
-          ${dealerData.domain},
-          ${dealerData.subdomain},
-          ${dealerData.status}::"DealerStatus",
-          ${dealerData.isWebsiteEnabled},
-          NOW(),
-          NOW()
-        )
-        ON CONFLICT ("externalId") DO UPDATE SET
-          "name" = EXCLUDED."name",
-          "slug" = EXCLUDED."slug",
-          "domain" = EXCLUDED."domain",
-          "subdomain" = EXCLUDED."subdomain",
-          "status" = EXCLUDED."status",
-          "isWebsiteEnabled" = EXCLUDED."isWebsiteEnabled",
-          "updatedAt" = NOW()
-      `;
-
-      // Get dealer ID
-      const result = await tx.$queryRaw`
-        SELECT id FROM dealers
-        WHERE "externalId" = ${dealerData.externalId}
-        LIMIT 1
-      ` as any[];
-
-      return result[0]?.id;
+    // Create dealer site config using Prisma ORM
+    const siteConfig = await prisma.dealerSiteConfig.upsert({
+      where: {
+        externalDealerId: externalDealer.dealerId
+      },
+      update: {
+        slug: dealerSlug,
+        subdomain: subdomain,
+        customDomain: externalDealer.contactDetails.websiteUrl?.replace('https://', '').replace('http://', '') || null,
+        lastSyncAt: new Date(),
+      },
+      create: {
+        externalDealerId: externalDealer.dealerId,
+        slug: dealerSlug,
+        subdomain: subdomain,
+        customDomain: externalDealer.contactDetails.websiteUrl?.replace('https://', '').replace('http://', '') || null,
+        isActive: true,
+        lastSyncAt: new Date(),
+      }
     });
 
-    if (!dealerId) {
+    const siteConfigId = siteConfig.id;
+
+    if (!siteConfigId) {
       console.log(`❌ Failed to process dealer: ${externalDealer.businessInfo.displayName}`);
       continue;
     }
 
-    // Create admin
+    // Create admin using Prisma ORM
     const adminEmail = externalDealer.contactDetails.primaryEmail;
     const adminName = `${externalDealer.businessInfo.displayName} Admin`;
 
-    await prisma.$executeRaw`
-      INSERT INTO dealer_admins (
-        id,
-        "dealerId",
-        "email",
-        "name",
-        "hashedPassword",
-        "isActive",
-        "createdAt",
-        "updatedAt"
-      )
-      VALUES (
-        gen_random_uuid(),
-        ${dealerId},
-        ${adminEmail},
-        ${adminName},
-        ${adminPassword},
-        true,
-        NOW(),
-        NOW()
-      )
-      ON CONFLICT ("email") DO UPDATE SET
-        "name" = EXCLUDED."name",
-        "hashedPassword" = EXCLUDED."hashedPassword",
-        "isActive" = EXCLUDED."isActive",
-        "updatedAt" = NOW()
-    `;
+    await prisma.dealerAdmin.upsert({
+      where: {
+        email: adminEmail
+      },
+      update: {
+        name: adminName,
+        hashedPassword: adminPassword,
+        isActive: true,
+      },
+      create: {
+        siteConfigId: siteConfigId,
+        email: adminEmail,
+        name: adminName,
+        hashedPassword: adminPassword,
+        isActive: true,
+      }
+    });
+
+    // Create default site customization (published) using Prisma ORM
+    await prisma.siteCustomization.upsert({
+      where: {
+        siteConfigId_status: {
+          siteConfigId: siteConfigId,
+          status: 'PUBLISHED'
+        }
+      },
+      update: {
+        content: {
+          businessName: externalDealer.businessInfo.displayName,
+          tagline: "Your trusted automotive partner"
+        },
+        seoSettings: {
+          title: externalDealer.businessInfo.displayName,
+          description: "Professional automotive dealership"
+        },
+      },
+      create: {
+        siteConfigId: siteConfigId,
+        themeId: defaultTheme.id,
+        customColors: null,
+        customTypography: null,
+        customSpacing: null,
+        customComponents: null,
+        sections: {
+          hero: { enabled: true },
+          features: { enabled: true },
+          footer: { enabled: true }
+        },
+        content: {
+          businessName: externalDealer.businessInfo.displayName,
+          tagline: "Your trusted automotive partner"
+        },
+        navigation: {
+          items: [
+            { label: "Home", href: "/", order: 1 },
+            { label: "Inventory", href: "/inventory", order: 2 },
+            { label: "About", href: "/about", order: 3 },
+            { label: "Contact", href: "/contact", order: 4 }
+          ]
+        },
+        seoSettings: {
+          title: externalDealer.businessInfo.displayName,
+          description: "Professional automotive dealership"
+        },
+        status: 'PUBLISHED',
+        publishedAt: new Date(),
+        publishedBy: 'system',
+        builderState: null,
+      }
+    });
 
     console.log(`✅ Created: ${externalDealer.businessInfo.displayName}`);
   }
 
-  // Get summary
-  const dealerSummary = await prisma.$queryRaw`
-    SELECT
-      d."name",
-      d."slug",
-      d."subdomain",
-      d."status",
-      da."email"
-    FROM dealers d
-    LEFT JOIN dealer_admins da ON d.id = da."dealerId"
-    ORDER BY d."name"
-  ` as any[];
+  // Get summary using Prisma ORM
+  const dealerSummary = await prisma.dealerSiteConfig.findMany({
+    include: {
+      adminAuth: {
+        select: {
+          email: true
+        }
+      }
+    },
+    orderBy: {
+      slug: 'asc'
+    }
+  });
 
   console.log('\n🎉 Seeding completed!');
-  console.log(`\n📊 Total dealers: ${dealerSummary.length}`);
+  console.log(`\n📊 Total dealer sites: ${dealerSummary.length}`);
 
-  console.log('\n🏢 Dealers created:');
-  dealerSummary.forEach((dealer: any) => {
-    console.log(`- ${dealer.name}`);
+  console.log('\n🏢 Dealer sites created:');
+  for (const dealer of dealerSummary) {
+    // Fetch external dealer info for display name
+    const externalInfo = await externalDealerApi.getDealerById(dealer.externalDealerId);
+    const displayName = externalInfo?.businessInfo.displayName || dealer.slug;
+
+    console.log(`- ${displayName}`);
     console.log(`  Slug: ${dealer.slug}`);
     console.log(`  Subdomain: ${dealer.subdomain}.localhost:3000`);
-    console.log(`  Admin: ${dealer.email}`);
-    console.log(`  Status: ${dealer.status}`);
+    console.log(`  Admin: ${dealer.adminAuth?.email || 'No admin'}`);
+    console.log(`  Status: ${dealer.isActive ? 'ACTIVE' : 'INACTIVE'}`);
     console.log('');
-  });
+  }
 
   console.log('🔑 Default password: admin123');
 
   console.log('\n🌐 Test URLs:');
-  dealerSummary.forEach((dealer: any) => {
+  for (const dealer of dealerSummary) {
+    const externalInfo = await externalDealerApi.getDealerById(dealer.externalDealerId);
+    const displayName = externalInfo?.businessInfo.displayName || dealer.slug;
+
     if (dealer.subdomain) {
-      console.log(`- ${dealer.name}: http://${dealer.subdomain}.localhost:3000`);
+      console.log(`- ${displayName}: http://${dealer.subdomain}.localhost:3000`);
     }
-  });
+  }
 }
 
 seedDatabase()

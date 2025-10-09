@@ -10,35 +10,41 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Dealer {
-  id                    String                    @id @default(cuid())
-  externalId            String                    @unique // ID from external API
-  name                  String
-  slug                  String                    @unique
-  domain                String?                   @unique
-  subdomain             String?                   @unique
-  status                DealerStatus              @default(ACTIVE)
-  isWebsiteEnabled      Boolean                   @default(true)
-  createdAt             DateTime                  @default(now())
-  updatedAt             DateTime                  @updatedAt
+// ==================================
+// DEALER MANAGEMENT
+// Note: Dealer data comes from external API and is NOT stored locally
+// Only track which dealers have customizations
+// ==================================
 
-  // Authentication
-  adminAuth             DealerAdmin?
+model DealerSiteConfig {
+  id                    String                @id @default(cuid())
+  externalDealerId      String                @unique // Reference to external dealer API
+  slug                  String                @unique // For routing (e.g., premium-motors)
+  subdomain             String?               @unique // Optional subdomain
+  customDomain          String?               @unique // Optional custom domain
+  isActive              Boolean               @default(true)
+  lastSyncAt            DateTime?             // Last time dealer data was synced
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
 
   // Relations
-  customizations        Customization[]
+  adminAuth             DealerAdmin?
+  siteCustomizations    SiteCustomization[]
 
-  @@map("dealers")
-  @@index([domain])
-  @@index([subdomain])
+  @@map("dealer_site_configs")
   @@index([slug])
-  @@index([status])
-  @@index([externalId])
+  @@index([subdomain])
+  @@index([customDomain])
+  @@index([externalDealerId])
 }
+
+// ==================================
+// AUTHENTICATION
+// ==================================
 
 model DealerAdmin {
   id                String              @id @default(cuid())
-  dealerId          String              @unique
+  siteConfigId      String              @unique
   email             String              @unique
   name              String
   hashedPassword    String
@@ -50,12 +56,12 @@ model DealerAdmin {
   updatedAt         DateTime            @updatedAt
 
   // Relations
-  dealer            Dealer              @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  siteConfig        DealerSiteConfig    @relation(fields: [siteConfigId], references: [id], onDelete: Cascade)
   sessions          AdminSession[]
 
   @@map("dealer_admins")
   @@index([email])
-  @@index([dealerId])
+  @@index([siteConfigId])
   @@index([resetToken])
 }
 
@@ -78,50 +84,123 @@ model AdminSession {
   @@index([expiresAt])
 }
 
-model Customization {
+// ==================================
+// TEMPLATE SYSTEM
+// ==================================
+
+model Theme {
   id                    String                @id @default(cuid())
-  dealerId              String
-  templateId            String                // Reference to Template
-  sections              Json                  // Array of sections with order and configuration
-  branding              Json                  // Brand colors, fonts, logos, etc.
-  seoSettings           Json                  // Meta descriptions, keywords, etc.
-  status                PublicationStatus
-  publishedAt           DateTime?
+  key                   String                @unique // e.g., "base", "t1", "luxury"
+  name                  String                // Display name
+  description           String
+  previewImage          String                // Preview screenshot URL
+  category              ThemeCategory         @default(AUTOMOTIVE)
+  isDefault             Boolean               @default(false) // One default theme
+  isSystemTheme         Boolean               @default(true)  // System vs user-created
+
+  // Theme configuration
+  colors                Json                  // Color palette
+  typography            Json                  // Font settings
+  spacing               Json                  // Layout spacing
+  components            Json                  // Component styles
+
+  // Metadata
+  tags      String[] @default([])
+  sortOrder             Int                   @default(0)
+  isActive              Boolean               @default(true)
+  version               String                @default("1.0.0")
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 
   // Relations
-  dealer                Dealer                @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  siteCustomizations    SiteCustomization[]
 
-  @@map("customizations")
-  @@index([dealerId, status])
-  @@unique([dealerId, status]) // Only one draft and one published per dealer
-}
-
-model Template {
-  id                    String   @id @default(cuid())
-  name                  String
-  description           String
-  previewImage          String   // Preview image URL
-  category              String   @default("automotive")
-  defaultSections       Json     // Default sections configuration
-  defaultBranding       Json     // Default brand settings (colors, fonts, etc.)
-  isAvailable           Boolean  @default(true)
-  sortOrder             Int      @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@map("templates")
-  @@index([isAvailable])
+  @@map("themes")
+  @@index([key])
   @@index([category])
+  @@index([isActive])
+  @@index([isSystemTheme])
   @@index([sortOrder])
 }
 
-enum DealerStatus {
-  ACTIVE
-  INACTIVE
-  SUSPENDED
-  PENDING
+// ==================================
+// SITE CUSTOMIZATION & BUILDER
+// ==================================
+
+model SiteCustomization {
+  id                    String                @id @default(cuid())
+  siteConfigId          String
+  themeId               String                // Base theme to extend
+
+  // Customization data
+  customColors          Json?                 // Override theme colors
+  customTypography      Json?                 // Override theme typography
+  customSpacing         Json?                 // Override theme spacing
+  customComponents      Json?                 // Override component styles
+
+  // Content & Layout
+  sections              Json                  // Page sections configuration
+  content               Json                  // Site content (text, images, etc.)
+  navigation            Json                  // Menu structure
+
+  // SEO & Meta
+  seoSettings           Json                  // Meta tags, descriptions, etc.
+
+  // Publication workflow
+  status                PublicationStatus
+  publishedAt           DateTime?
+  publishedBy           String?               // Admin who published
+
+  // Builder state (for drafts)
+  builderState          Json?                 // Current builder state for resuming work
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  // Relations
+  siteConfig            DealerSiteConfig      @relation(fields: [siteConfigId], references: [id], onDelete: Cascade)
+  theme                 Theme                 @relation(fields: [themeId], references: [id])
+  revisions             CustomizationRevision[]
+
+  @@map("site_customizations")
+  @@index([siteConfigId, status])
+  @@unique([siteConfigId, status]) // Only one draft and one published per site
+}
+
+// ==================================
+// REVISION HISTORY
+// ==================================
+
+model CustomizationRevision {
+  id                    String                @id @default(cuid())
+  customizationId       String
+  version               Int                   // Incremental version number
+
+  // Snapshot of customization at this revision
+  snapshot              Json                  // Full customization data
+  changesSummary        String?               // Optional description of changes
+  createdBy             String?               // Admin who created this revision
+  createdAt             DateTime              @default(now())
+
+  // Relations
+  customization         SiteCustomization     @relation(fields: [customizationId], references: [id], onDelete: Cascade)
+
+  @@map("customization_revisions")
+  @@index([customizationId])
+  @@unique([customizationId, version])
+}
+
+// ==================================
+// ENUMS
+// ==================================
+
+enum ThemeCategory {
+  AUTOMOTIVE
+  LUXURY
+  MODERN
+  CLASSIC
+  MINIMAL
+  CUSTOM
 }
 
 enum PublicationStatus {

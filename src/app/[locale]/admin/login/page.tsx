@@ -46,9 +46,9 @@ export default function AdminLogin() {
   const demoAccounts = [
     {
       role: 'Premium Motors Admin',
-      email: 'dealer@premium-motors.com',
+      email: 'info@premium-motors.com',
       password: 'admin123',
-      description: 'Dealer customization panel',
+      description: 'info@premium-motors.com',
       variant: 'default' as const
     },
     {

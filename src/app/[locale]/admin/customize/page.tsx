@@ -1,16 +1,16 @@
-import { requireDealerAuth } from '@/lib/auth';
+import { requireDealerAccess } from '@/lib/auth';
 import { getDealerConfig } from '@/lib/config';
-import { findDealerById } from '@/lib/db';
+import { dealerService } from '@/lib/dealer-service';
 import { LiveCustomizer } from './LiveCustomizer';
 
 export default async function AdminCustomizePage() {
   // Require authentication and dealer access
-  const { session, dealerId } = await requireDealerAuth();
+  const { session, externalDealerId, siteConfigId } = await requireDealerAccess();
 
-  // Get current dealer info and config
+  // Get current dealer info from external API and config
   const [dealer, config] = await Promise.all([
-    findDealerById(dealerId),
-    getDealerConfig(dealerId, { preview: true })
+    dealerService.getDealerById(externalDealerId),
+    getDealerConfig(externalDealerId, { preview: true })
   ]);
 
   if (!dealer) {
@@ -23,7 +23,8 @@ export default async function AdminCustomizePage() {
         session={session}
         dealer={dealer}
         initialConfig={config}
-        dealerId={dealerId}
+        externalDealerId={externalDealerId}
+        siteConfigId={siteConfigId}
       />
     </div>
   );

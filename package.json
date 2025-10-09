@@ -10,7 +10,7 @@
     "prepare": "husky install",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "npx prisma/seed.ts",
     "pack:cpanel": "rm -rf deploy && mkdir -p deploy/.next && npm run build && cp -r .next/standalone deploy/.next/standalone && cp -r .next/static deploy/.next/static && if [ -d public ]; then cp -r public deploy/public; fi && node -e \"require('fs').writeFileSync('deploy/app.js', 'process.env.HOST=\\'0.0.0.0\\';process.env.PORT=process.env.PORT||\\'3000\\';require(\\'./.next/standalone/server.js\\')')\" && if [ -f .env.production ]; then cp .env.production deploy/.env; elif [ -f .env.local ]; then cp .env.local deploy/.env; fi"
   },
   "dependencies": {

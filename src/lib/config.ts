@@ -1,6 +1,7 @@
 import 'server-only';
 import { DealerConfig, DealerConfigSchema } from '@/types/customization';
-import { findDealerById, getCustomization } from './db';
+import { dealerService } from './dealer-service';
+import { themeService } from './theme-service';
 // import { getFromCache, setCache } from './redis';
 
 // Base theme configurations
@@ -131,67 +132,52 @@ function deepMerge(target: any, source: any): any {
 }
 
 export async function getDealerConfig(
-  dealerId: string,
+  siteSlugOrExternalId: string,
   options: { preview?: boolean } = {}
 ): Promise<DealerConfig> {
-  // Try Redis cache first
-  // const cacheKey = `dealer:cfg:${dealerId}:${options.preview ? 'preview' : 'published'}`;
-  // const cached = await getFromCache<DealerConfig>(cacheKey);
-  // if (cached) {
-  //   return cached;
-  // }
 
   try {
-    // Get dealer info
-    const dealer = await findDealerById(dealerId);
+    // Get dealer info from external API (no local storage)
+    const dealer = await dealerService.getDealerById(siteSlugOrExternalId) ||
+                   await dealerService.getDealerBySlug(siteSlugOrExternalId);
 
     if (!dealer) {
-      throw new Error(`Dealer not found: ${dealerId}`);
+      console.warn(`Dealer not found: ${siteSlugOrExternalId}, returning default config`);
+      return DEFAULT_CONFIG;
     }
 
     // Layer 1: Base default config
     let config = { ...DEFAULT_CONFIG };
 
-    // Layer 2: Base theme config (using default base theme for now)
-    const baseTheme = BASE_THEMES['base'];
-    if (baseTheme) {
-      config = deepMerge(config, baseTheme);
-    }
-
-    // Layer 3: Published customization (always applied)
-    const publishedCustomization = await getCustomization(dealerId, 'PUBLISHED');
-
-    if (publishedCustomization) {
-      // Parse JSON fields from our customization
-      try {
-        const customData = {
-          ...(publishedCustomization.sections ? JSON.parse(publishedCustomization.sections) : {}),
-          ...(publishedCustomization.branding ? JSON.parse(publishedCustomization.branding) : {}),
-          ...(publishedCustomization.seoSettings ? JSON.parse(publishedCustomization.seoSettings) : {}),
-        };
-        config = deepMerge(config, customData);
-      } catch (error) {
-        console.warn('Error parsing customization data:', error);
+    // Layer 2: Get base theme from database
+    const defaultTheme = await themeService.getDefaultTheme();
+    if (defaultTheme) {
+      const themeConfig = {
+        theme: {
+          key: defaultTheme.key,
+          colors: defaultTheme.colors,
+          typography: defaultTheme.typography,
+          spacing: defaultTheme.spacing,
+        },
+        tokens: defaultTheme.components,
+      };
+      config = deepMerge(config, themeConfig);
+    } else {
+      // Fallback to hardcoded base theme if DB is not available
+      const baseTheme = BASE_THEMES['base'];
+      if (baseTheme) {
+        config = deepMerge(config, baseTheme);
       }
     }
+
+    // TODO: Once Prisma client is working, implement:
+    // Layer 3: Published customization (always applied)
+    // const publishedCustomization = await themeService.getSiteCustomization(siteConfigId, 'PUBLISHED');
 
     // Layer 4: Draft customization (only if preview mode)
-    if (options.preview) {
-      const draftCustomization = await getCustomization(dealerId, 'DRAFT');
-      if (draftCustomization) {
-        // Parse JSON fields from our draft customization
-        try {
-          const customData = {
-            ...(draftCustomization.sections ? JSON.parse(draftCustomization.sections) : {}),
-            ...(draftCustomization.branding ? JSON.parse(draftCustomization.branding) : {}),
-            ...(draftCustomization.seoSettings ? JSON.parse(draftCustomization.seoSettings) : {}),
-          };
-          config = deepMerge(config, customData);
-        } catch (error) {
-          console.warn('Error parsing draft customization data:', error);
-        }
-      }
-    }
+    // if (options.preview) {
+    //   const draftCustomization = await themeService.getSiteCustomization(siteConfigId, 'DRAFT');
+    // }
 
     // Validate and parse the final config
     const validatedConfig = DealerConfigSchema.parse(config);

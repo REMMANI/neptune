@@ -62,7 +62,7 @@ export function TemplateSelector({ session, dealerId }: TemplateSelectorProps) {
     setSelecting(templateId);
 
     try {
-      const response = await fetch(`/api/admin/dealers/${dealerId}/templates/select`, {
+      const response = await fetch(`/api/admin/dealers/templates/select`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -154,14 +154,14 @@ export function TemplateSelector({ session, dealerId }: TemplateSelectorProps) {
                 Included Sections
               </div>
               <div className="flex flex-wrap gap-1">
-                {template.sections.slice(0, 4).map((section: any) => (
+                {template.sections?.slice(0, 4).map((section: any) => (
                   <Badge key={section.id} variant="secondary" className="text-xs bg-gray-100 text-gray-600">
                     {section.name}
                   </Badge>
                 ))}
-                {template.sections.length > 4 && (
+                {template.sections?.length > 4 && (
                   <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-600">
-                    +{template.sections.length - 4} more
+                    +{template.sections?.length - 4} more
                   </Badge>
                 )}
               </div>
@@ -173,19 +173,19 @@ export function TemplateSelector({ session, dealerId }: TemplateSelectorProps) {
                 Color Scheme
               </div>
               <div className="flex space-x-2">
-                {template.settings.colors && (
+                {template.settings?.colors && (
                   <>
                     <div
                       className="w-6 h-6 rounded-full shadow-inner border border-gray-200"
-                      style={{ backgroundColor: template.settings.colors.primary }}
+                      style={{ backgroundColor: template.settings?.colors.primary }}
                     />
                     <div
                       className="w-6 h-6 rounded-full shadow-inner border border-gray-200"
-                      style={{ backgroundColor: template.settings.colors.secondary }}
+                      style={{ backgroundColor: template.settings?.colors.secondary }}
                     />
                     <div
                       className="w-6 h-6 rounded-full shadow-inner border border-gray-200"
-                      style={{ backgroundColor: template.settings.colors.accent }}
+                      style={{ backgroundColor: template.settings?.colors.accent }}
                     />
                   </>
                 )}

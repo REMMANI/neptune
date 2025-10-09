@@ -1,6 +1,6 @@
-import { requireDealerAuth } from '@/lib/auth';
+import { requireDealerAccess } from '@/lib/auth';
 import { getDealerConfig } from '@/lib/config';
-import { findDealerById } from '@/lib/db';
+import { dealerService } from '@/lib/dealer-service';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,12 +9,15 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default async function AdminDashboard() {
-  const { session, dealerId } = await requireDealerAuth();
+  const { session, externalDealerId, siteConfigId } = await requireDealerAccess();
 
+  // Fetch dealer info from external API and config
   const [dealer, config] = await Promise.all([
-    findDealerById(dealerId),
-    getDealerConfig(dealerId, { preview: false })
+    dealerService.getDealerById(externalDealerId),
+    getDealerConfig(externalDealerId, { preview: false })
   ]);
+
+  console.log('Dealer Config:', config, dealer);
 
   if (!dealer) {
     throw new Error('Dealer not found');
@@ -56,7 +59,7 @@ export default async function AdminDashboard() {
                         Dealer Admin
                       </Badge>
                       <span className="text-sm text-gray-500">•</span>
-                      <span className="text-sm text-gray-600">{dealer.name}</span>
+                      <span className="text-sm text-gray-600">{dealer.displayName}</span>
                     </div>
                   </div>
                 </div>
@@ -91,9 +94,9 @@ export default async function AdminDashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">Dealer Slug</p>
-                    <p className="text-2xl font-bold text-gray-900">{dealer.slug}</p>
-                    <p className="text-xs text-gray-500 mt-1">ID: {dealerId.slice(0, 8)}...</p>
+                    <p className="text-sm font-medium text-gray-600 mb-1">External ID</p>
+                    <p className="text-2xl font-bold text-gray-900">{externalDealerId}</p>
+                    <p className="text-xs text-gray-500 mt-1">Site: {siteConfigId.slice(0, 8)}...</p>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,7 +129,7 @@ export default async function AdminDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">Status</p>
-                    <p className="text-2xl font-bold text-gray-900 capitalize">{dealer.status.toLowerCase()}</p>
+                    <p className="text-2xl font-bold text-gray-900 capitalize">{dealer.operationalInfo.status}</p>
                     <div className="flex items-center mt-1">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse mr-1"></div>
                       <p className="text-xs text-green-600">Live</p>

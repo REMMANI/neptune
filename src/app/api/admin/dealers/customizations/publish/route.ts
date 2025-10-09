@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import { isAuthenticatedForDealer, hasPermission } from '@/lib/auth';
-import { findDealerById, getDealerCustomization, publishDraftCustomization } from '@/lib/db';
+import { findDealerById, getCustomization, publishDraftCustomization } from '@/lib/db';
 import { invalidateDealerCache } from '@/lib/config';
 
 export async function POST(
@@ -29,7 +29,7 @@ export async function POST(
     }
 
     // Get draft customization
-    const draftCustomization = await getDealerCustomization(dealerId, 'DRAFT');
+    const draftCustomization = await getCustomization(dealerId, 'DRAFT');
 
     if (!draftCustomization) {
       return NextResponse.json(
