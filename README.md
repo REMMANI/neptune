@@ -1,38 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NEPTUNE
 
-## Getting Started
+## Development Commands
 
-First, run the development server:
+- **Development server**: `npm run dev` (uses Turbopack for faster builds)
+- **Production build**: `npm run build` (uses Turbopack)
+- **Start production server**: `npm start`
+- **Linting**: `npm run lint` (ESLint with Prettier integration)
+- **cPanel deployment**: `npm run pack:cpanel` (packages for cPanel deployment)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Multi-Tenant Architecture
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This is a multi-tenant Next.js application that dynamically routes based on subdomains or tenant query parameters:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Tenant Resolution**: Middleware extracts tenant from subdomain (e.g., `dealer1.domain.com`) or `?tenant=dealer1` query parameter
+- **Configuration**: Each tenant gets dynamic configuration via `/src/app/api/dealers/[id]/site-config/route.ts`
+- **Theme System**: Tenants can use different themes (`base`, `t1`) with custom overrides
+- **Dealer Overrides**: Specific dealers can have custom components and styling in `/src/dealers/[dealerId]/`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Key Architecture Components
 
-## Learn More
+### Theme System (`/src/themes/`)
+- **Base Theme**: Default theme in `/src/themes/base/`
+- **Theme Registry**: Defined in `/src/themes/index.ts`
+- **Theme Resolution**: `/src/lib/config.ts` handles theme selection and dealer overrides
+- **Components**: Each theme has its own component overrides
 
-To learn more about Next.js, take a look at the following resources:
+### Dealer-Specific Customizations (`/src/dealers/`)
+- **Manifest**: `/src/dealers/manifest.ts` defines which dealers have custom overrides
+- **Structure**: Each dealer directory (e.g., `102324`, `100133`) contains custom components and styling
+- **Dynamic Import**: Dealer overrides are lazy-loaded when needed
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Content Blocks (`/src/blocks/`)
+- Reusable content components (hero, features, footer)
+- Used for dynamic page composition
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Configuration Files
 
-## Deploy on Vercel
+- **Next.js**: Uses standalone output mode with typed routes enabled
+- **TypeScript**: Path aliases configured (`@/*` maps to `./src/*`)
+- **ESLint**: Configured with Next.js rules, Prettier integration, and unused vars disabled for TypeScript
+- **Prettier**: Single quotes, trailing commas, 100 character line width, Tailwind plugin enabled
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Localization
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Internationalization support with locale-based routing (`/src/app/[locale]/`)
+- i18n utilities in `/src/lib/i18n.ts`
 
-npx prisma migrate reset --force && npx prisma regenerate
+## API Structure
+
+- **Dealer Config**: `/src/app/api/dealers/[id]/site-config/route.ts` provides tenant-specific configuration
+- **SEO**: Dynamic robots.txt and sitemap generation in `/src/app/`
+
+## Development Notes
+
+- Uses Turbopack for faster development and builds
+- Husky pre-commit hooks with lint-staged for code quality
+- Standalone deployment mode for production
+- All images domains allowed in Next.js config (consider restricting for production)
+
+
+neptune/
+  ├── prisma/
+  │   ├── schema.prisma
+  │   ├── migrations/
+  │   │   └── 001_init.sql
+  │   └── seed.ts
+  ├── src/
+  │   ├── lib/
+  │   │   ├── prisma.ts
+  │   │   ├── redis.ts
+  │   │   ├── tenant.ts (updated)
+  │   │   ├── config.ts
+  │   │   └── cache.ts
+  │   ├── types/
+  │   │   ├── dealer.ts
+  │   │   └── customization.ts
+  │   ├── app/
+  │   │   ├── api/
+  │   │   │   ├── dealers/
+  │   │   │   │   └── [id]/
+  │   │   │   │       ├── customizations/
+  │   │   │   │       │   ├── draft/
+  │   │   │   │       │   │   └── route.ts
+  │   │   │   │       │   └── publish/
+  │   │   │   │       │       └── route.ts
+  │   │   │   │       └── config/
+  │   │   │   │           └── route.ts
+  │   │   │   ├── cms/
+  │   │   │   │   └── [proxy routes]
+  │   │   │   └── inventory/
+  │   │   │       └── [proxy routes]
+  │   │   ├── [locale]/
+  │   │   │   ├── layout.tsx (updated)
+  │   │   │   ├── [...slug]/
+  │   │   │   │   └── page.tsx
+  │   │   │   └── inventory/
+  │   │   │       ├── page.tsx
+  │   │   │       └── [id]/
+  │   │   │           └── page.tsx
+  │   │   └── admin/
+  │   │       └── customize/
+  │   │           └── page.tsx
+  │   └── components/
+  │       ├── customizer/
+  │       │   ├── CustomizerUI.tsx
+  │       │   ├── PreviewFrame.tsx
+  │       │   └── ControlPanel.tsx
+  │       └── blocks/
+  │           └── RenderBlocks.tsx (updated)
+  ├── deploy/
+  │   └── app.js (updated)
+  └── package.json (updated)

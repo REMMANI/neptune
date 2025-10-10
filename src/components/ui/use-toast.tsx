@@ -7,7 +7,6 @@ type ToastProps = {
 }
 
 const toastFn = ({ title, description, variant = "default" }: ToastProps) => {
-  console.log(`Toast [${variant}]: ${title}`, description);
 };
 
 export function useToast() {

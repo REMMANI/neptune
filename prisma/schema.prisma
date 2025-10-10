@@ -16,7 +16,7 @@ datasource db {
 // Only track which dealers have customizations
 // ==================================
 
-model DealerSiteConfig {
+model Dealer {
   id                    String                @id @default(cuid())
   externalDealerId      String                @unique // Reference to external dealer API
   slug                  String                @unique // For routing (e.g., premium-motors)
@@ -28,10 +28,10 @@ model DealerSiteConfig {
   updatedAt             DateTime              @updatedAt
 
   // Relations
-  adminAuth             DealerAdmin?
-  siteCustomizations    SiteCustomization[]
+  adminAuth             DealerAuth?
+  customizations    Customization[]
 
-  @@map("dealer_site_configs")
+  @@map("dealers")
   @@index([slug])
   @@index([subdomain])
   @@index([customDomain])
@@ -42,9 +42,9 @@ model DealerSiteConfig {
 // AUTHENTICATION
 // ==================================
 
-model DealerAdmin {
+model DealerAuth {
   id                String              @id @default(cuid())
-  siteConfigId      String              @unique
+  dealerId      String              @unique
   email             String              @unique
   name              String
   hashedPassword    String
@@ -56,18 +56,18 @@ model DealerAdmin {
   updatedAt         DateTime            @updatedAt
 
   // Relations
-  siteConfig        DealerSiteConfig    @relation(fields: [siteConfigId], references: [id], onDelete: Cascade)
-  sessions          AdminSession[]
+  dealer        Dealer    @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  sessions          Session[]
 
   @@map("dealer_admins")
   @@index([email])
-  @@index([siteConfigId])
+  @@index([dealerId])
   @@index([resetToken])
 }
 
-model AdminSession {
+model Session {
   id            String           @id @default(cuid())
-  adminId       String
+  dealerAuthId       String
   token         String           @unique
   expiresAt     DateTime
   ipAddress     String?
@@ -76,11 +76,11 @@ model AdminSession {
   updatedAt     DateTime         @updatedAt
 
   // Relations
-  admin         DealerAdmin      @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  admin         DealerAuth      @relation(fields: [dealerAuthId], references: [id], onDelete: Cascade)
 
-  @@map("admin_sessions")
+  @@map("sessions")
   @@index([token])
-  @@index([adminId])
+  @@index([dealerAuthId])
   @@index([expiresAt])
 }
 
@@ -113,7 +113,7 @@ model Theme {
   updatedAt             DateTime              @updatedAt
 
   // Relations
-  siteCustomizations    SiteCustomization[]
+  customizations    Customization[]
 
   @@map("themes")
   @@index([key])
@@ -127,9 +127,9 @@ model Theme {
 // SITE CUSTOMIZATION & BUILDER
 // ==================================
 
-model SiteCustomization {
+model Customization {
   id                    String                @id @default(cuid())
-  siteConfigId          String
+  dealerId          String
   themeId               String                // Base theme to extend
 
   // Customization data
@@ -149,7 +149,6 @@ model SiteCustomization {
   // Publication workflow
   status                PublicationStatus
   publishedAt           DateTime?
-  publishedBy           String?               // Admin who published
 
   // Builder state (for drafts)
   builderState          Json?                 // Current builder state for resuming work
@@ -158,13 +157,13 @@ model SiteCustomization {
   updatedAt             DateTime              @updatedAt
 
   // Relations
-  siteConfig            DealerSiteConfig      @relation(fields: [siteConfigId], references: [id], onDelete: Cascade)
+  dealer            Dealer      @relation(fields: [dealerId], references: [id], onDelete: Cascade)
   theme                 Theme                 @relation(fields: [themeId], references: [id])
   revisions             CustomizationRevision[]
 
-  @@map("site_customizations")
-  @@index([siteConfigId, status])
-  @@unique([siteConfigId, status]) // Only one draft and one published per site
+  @@map("customizations")
+  @@index([dealerId, status])
+  @@unique([dealerId, status]) // Only one draft and one published per site
 }
 
 // ==================================
@@ -183,7 +182,7 @@ model CustomizationRevision {
   createdAt             DateTime              @default(now())
 
   // Relations
-  customization         SiteCustomization     @relation(fields: [customizationId], references: [id], onDelete: Cascade)
+  customization         Customization     @relation(fields: [customizationId], references: [id], onDelete: Cascade)
 
   @@map("customization_revisions")
   @@index([customizationId])

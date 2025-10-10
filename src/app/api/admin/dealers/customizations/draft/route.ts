@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireAuth, hasPermission, isAuthenticatedForDealer } from '@/lib/auth';
+import { isAuthenticatedForDealer, getSessionFromRequest } from '@/lib/auth';
 import { findDealerById, getCustomization, upsertDraftCustomization } from '@/lib/db';
 import { DealerConfigSchema } from '@/types/customization';
 import { invalidateDealerCache } from '@/lib/config';
+import { log } from 'console';
 
 const PartialConfigSchema = DealerConfigSchema.deepPartial();
 
@@ -12,9 +13,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: dealerId } = await params;
 
-    // Check authentication and dealer access
+    const session = await getSessionFromRequest(request);
+    const dealerId = (session as any).user.id 
+
+    // Check authentication and dealer access    
     if (!(await isAuthenticatedForDealer(request, dealerId))) {
       return NextResponse.json(
         { error: 'Unauthorized - insufficient permissions for this dealer' },
@@ -49,9 +52,8 @@ export async function POST(
       const baseData = publishedCustomization?.data || {};
       finalData = deepMergePartial(baseData, partialConfig);
     }
-
     // Save the draft
-    const draftCustomization = await upsertDraftCustomization(dealerId, finalData);
+    const draftCustomization = await upsertDraftCustomization(dealerId,existingDraft?.themeId , finalData);
 
     // Invalidate preview cache
     await invalidateDealerCache(dealerId);
@@ -140,7 +142,7 @@ export async function DELETE(
     }
 
     // Reset draft to empty (this will effectively delete it)
-    await upsertDraftCustomization(dealerId, {});
+    await upsertDraftCustomization(dealerId, draftCustomization?.themeId,{});
 
     // Invalidate preview cache
     await invalidateDealerCache(dealerId);

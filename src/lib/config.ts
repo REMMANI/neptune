@@ -172,11 +172,11 @@ export async function getDealerConfig(
 
     // TODO: Once Prisma client is working, implement:
     // Layer 3: Published customization (always applied)
-    // const publishedCustomization = await themeService.getSiteCustomization(siteConfigId, 'PUBLISHED');
+    // const publishedCustomization = await themeService.getSiteCustomization(dealerId, 'PUBLISHED');
 
     // Layer 4: Draft customization (only if preview mode)
     // if (options.preview) {
-    //   const draftCustomization = await themeService.getSiteCustomization(siteConfigId, 'DRAFT');
+    //   const draftCustomization = await themeService.getSiteCustomization(dealerId, 'DRAFT');
     // }
 
     // Validate and parse the final config
@@ -198,7 +198,6 @@ export async function invalidateDealerCache(dealerId: string): Promise<void> {
     const { deleteFromCache } = await import('./redis');
     await deleteFromCache(`dealer:cfg:${dealerId}:*`);
 
-    console.log(`Cache invalidated for dealer: ${dealerId}`);
   } catch (error) {
     console.warn('Cache invalidation error:', error);
   }

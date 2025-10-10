@@ -4,7 +4,7 @@ import { dealerService } from './dealer-service';
 
 export type TenantInfo = {
   externalDealerId: string; // Changed from dealerId to externalDealerId
-  siteConfigId: string; // Added site config ID
+  dealerId: string; // Added site config ID
   locale: string;
   themeKey: string;
 };
@@ -22,7 +22,7 @@ const FALLBACK_DOMAIN_MAP: Record<string, string> = {
 
 const DEFAULT_EXTERNAL_DEALER_ID = 'PMV-2024-001';
 
-async function getDealerByDomain(host: string): Promise<{ externalDealerId: string; siteConfigId: string; themeKey: string } | null> {
+async function getDealerByDomain(host: string): Promise<{ externalDealerId: string; dealerId: string; themeKey: string } | null> {
   try {
     // Check database for domain or subdomain match
     const siteConfig = await findSiteConfigByDomain(host);
@@ -33,7 +33,7 @@ async function getDealerByDomain(host: string): Promise<{ externalDealerId: stri
       if (dealer && dealer.isActive) {
         return {
           externalDealerId: siteConfig.externalDealerId,
-          siteConfigId: siteConfig.id,
+          dealerId: siteConfig.id,
           themeKey: 'base'
         };
       }
@@ -56,7 +56,7 @@ async function getDealerByDomain(host: string): Promise<{ externalDealerId: stri
 
         return {
           externalDealerId: fallbackExternalId,
-          siteConfigId: siteConfig?.id || 'fallback-site-config',
+          dealerId: siteConfig?.id || 'fallback-site-config',
           themeKey: 'base'
         };
       }
@@ -69,9 +69,9 @@ async function getDealerByDomain(host: string): Promise<{ externalDealerId: stri
   }
 }
 
-async function getSiteConfigById(siteConfigId: string): Promise<{ externalDealerId: string; siteConfigId: string; themeKey: string } | null> {
+async function getSiteConfigById(dealerId: string): Promise<{ externalDealerId: string; dealerId: string; themeKey: string } | null> {
   try {
-    const siteConfig = await findSiteConfigById(siteConfigId);
+    const siteConfig = await findSiteConfigById(dealerId);
 
     if (siteConfig) {
       // Validate that external dealer exists
@@ -79,7 +79,7 @@ async function getSiteConfigById(siteConfigId: string): Promise<{ externalDealer
       if (dealer && dealer.isActive) {
         return {
           externalDealerId: siteConfig.externalDealerId,
-          siteConfigId: siteConfig.id,
+          dealerId: siteConfig.id,
           themeKey: 'base'
         };
       }
@@ -98,7 +98,7 @@ export async function resolveTenant(
   dealerHeader?: string
 ): Promise<TenantInfo> {
   let externalDealerId: string | null = null;
-  let siteConfigId: string | null = null;
+  let dealerId: string | null = null;
   let themeKey = 'base';
   let locale = 'en'; // Default locale
 
@@ -107,7 +107,7 @@ export async function resolveTenant(
     const result = await getSiteConfigById(dealerHeader);
     if (result) {
       externalDealerId = result.externalDealerId;
-      siteConfigId = result.siteConfigId;
+      dealerId = result.dealerId;
       themeKey = result.themeKey;
     }
   }
@@ -116,7 +116,7 @@ export async function resolveTenant(
     const result = await getDealerByDomain(host);
     if (result) {
       externalDealerId = result.externalDealerId;
-      siteConfigId = result.siteConfigId;
+      dealerId = result.dealerId;
       themeKey = result.themeKey;
     }
   }
@@ -130,7 +130,7 @@ export async function resolveTenant(
 
       // Try to find site config for default dealer
       const siteConfig = await findSiteConfigByExternalId(DEFAULT_EXTERNAL_DEALER_ID);
-      siteConfigId = siteConfig?.id || 'fallback-site-config';
+      dealerId = siteConfig?.id || 'fallback-site-config';
     }
   }
 
@@ -153,7 +153,7 @@ export async function resolveTenant(
 
   return {
     externalDealerId,
-    siteConfigId: siteConfigId!,
+    dealerId: dealerId!,
     locale,
     themeKey,
   };

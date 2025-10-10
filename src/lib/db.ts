@@ -1,7 +1,17 @@
+import { normalizeHost } from '@/utils/host';
 import { prisma, connectPrisma, checkDatabaseHealth } from './prisma';
 
 // Re-export the prisma instance
 export { prisma } from './prisma';
+
+type DealerPick = {
+  id: string;
+  externalDealerId: string | null;
+  slug: string;
+  subdomain: string | null;
+  customDomain: string | null;
+  isActive: boolean;
+};
 
 // Database utilities
 export class DatabaseService {
@@ -27,18 +37,30 @@ export class DatabaseService {
   }
 
   // Site Config operations (replaces old dealer operations)
-  async findSiteConfigByDomain(domain: string) {
+async findSiteConfigByDomain(domain: string): Promise<DealerPick | null> {
     await this.ensureConnection();
 
-    const subdomain = domain.split('.')[0];
-    const result = await prisma.$queryRaw`
-      SELECT id, "externalDealerId", slug, subdomain, "customDomain", "isActive"
-      FROM dealer_site_configs
-      WHERE ("customDomain" = ${domain} OR subdomain = ${subdomain})
-        AND "isActive" = true
-      LIMIT 1
-    ` as any[];
-    return result[0] || null;
+    const { host, bare, sub } = normalizeHost(domain);
+
+    const result = await prisma.dealer.findFirst({
+      where: {
+        isActive: true,
+        OR: [
+          { customDomain: host }, // exact host (with www if present)
+          { customDomain: bare }, // bare domain (no www)
+          { subdomain: sub },     // fallback to subdomain match
+        ],
+      },
+      select: {
+        id: true,
+        externalDealerId: true,
+        slug: true,
+        subdomain: true,
+        customDomain: true,
+        isActive: true,
+      },
+    });
+    return result ?? null;
   }
 
   async findSiteConfigById(id: string) {
@@ -46,7 +68,7 @@ export class DatabaseService {
 
     const result = await prisma.$queryRaw`
       SELECT id, "externalDealerId", slug, subdomain, "customDomain", "isActive"
-      FROM dealer_site_configs
+      FROM dealers
       WHERE id = ${id}
       LIMIT 1
     ` as any[];
@@ -58,7 +80,7 @@ export class DatabaseService {
 
     const result = await prisma.$queryRaw`
       SELECT id, "externalDealerId", slug, subdomain, "customDomain", "isActive"
-      FROM dealer_site_configs
+      FROM dealers
       WHERE slug = ${slug}
       LIMIT 1
     ` as any[];
@@ -70,7 +92,7 @@ export class DatabaseService {
 
     const result = await prisma.$queryRaw`
       SELECT id, "externalDealerId", slug, subdomain, "customDomain", "isActive"
-      FROM dealer_site_configs
+      FROM dealers
       WHERE "externalDealerId" = ${externalId}
       LIMIT 1
     ` as any[];
@@ -78,7 +100,7 @@ export class DatabaseService {
   }
 
   // Site Customization operations (updated for new schema)
-  async getSiteCustomization(siteConfigId: string, status: 'DRAFT' | 'PUBLISHED') {
+  async getSiteCustomization(dealerId: string, status: 'DRAFT' | 'PUBLISHED') {
     await this.ensureConnection();
 
     try {
@@ -86,16 +108,16 @@ export class DatabaseService {
       const query = status === 'DRAFT' ?
         prisma.$queryRaw`
           SELECT sc.*, t.key as theme_key, t.name as theme_name
-          FROM site_customizations sc
+          FROM customizations sc
           LEFT JOIN themes t ON sc."themeId" = t.id
-          WHERE sc."siteConfigId" = ${siteConfigId} AND sc.status = 'DRAFT'
+          WHERE sc."dealerId" = ${dealerId} AND sc.status = 'DRAFT'
           LIMIT 1
         ` :
         prisma.$queryRaw`
           SELECT sc.*, t.key as theme_key, t.name as theme_name
-          FROM site_customizations sc
+          FROM customizations sc
           LEFT JOIN themes t ON sc."themeId" = t.id
-          WHERE sc."siteConfigId" = ${siteConfigId} AND sc.status = 'PUBLISHED'
+          WHERE sc."dealerId" = ${dealerId} AND sc.status = 'PUBLISHED'
           LIMIT 1
         `;
 
@@ -107,10 +129,9 @@ export class DatabaseService {
     }
   }
 
-  async upsertDraftSiteCustomization(siteConfigId: string, themeId: string, data: any) {
+  async upsertDraftSiteCustomization(dealerId: string, themeId: string, data: any) {
     await this.ensureConnection();
 
-    // Convert data to new schema format
     const customColors = data.customColors ? JSON.stringify(data.customColors) : null;
     const customTypography = data.customTypography ? JSON.stringify(data.customTypography) : null;
     const customSpacing = data.customSpacing ? JSON.stringify(data.customSpacing) : null;
@@ -121,38 +142,54 @@ export class DatabaseService {
     const seoSettings = JSON.stringify(data.seoSettings || {});
     const builderState = data.builderState ? JSON.stringify(data.builderState) : null;
 
-    return await prisma.$executeRaw`
-      INSERT INTO site_customizations (
-        id, "siteConfigId", "themeId", "customColors", "customTypography", "customSpacing",
-        "customComponents", sections, content, navigation, "seoSettings", status, "builderState", "createdAt", "updatedAt"
-      ) VALUES (
-        gen_random_uuid(), ${siteConfigId}, ${themeId}, ${customColors}::jsonb, ${customTypography}::jsonb,
-        ${customSpacing}::jsonb, ${customComponents}::jsonb, ${sections}::jsonb, ${content}::jsonb,
-        ${navigation}::jsonb, ${seoSettings}::jsonb, 'DRAFT', ${builderState}::jsonb, NOW(), NOW()
-      )
-      ON CONFLICT ("siteConfigId", status) DO UPDATE SET
-        "themeId" = EXCLUDED."themeId",
-        "customColors" = EXCLUDED."customColors",
-        "customTypography" = EXCLUDED."customTypography",
-        "customSpacing" = EXCLUDED."customSpacing",
-        "customComponents" = EXCLUDED."customComponents",
-        sections = EXCLUDED.sections,
-        content = EXCLUDED.content,
-        navigation = EXCLUDED.navigation,
-        "seoSettings" = EXCLUDED."seoSettings",
-        "builderState" = EXCLUDED."builderState",
-        "updatedAt" = NOW()
-    `;
+    // Upsert using Prisma ORM
+    return await prisma.customization.upsert({
+      where: {
+      dealerId_status: {
+        dealerId,
+        status: 'DRAFT',
+      },
+      },
+      update: {
+      themeId,
+      customColors,
+      customTypography,
+      customSpacing,
+      customComponents,
+      sections,
+      content,
+      navigation,
+      seoSettings,
+      builderState,
+      updatedAt: new Date(),
+      },
+      create: {
+      dealerId,
+      themeId,
+      customColors,
+      customTypography,
+      customSpacing,
+      customComponents,
+      sections,
+      content,
+      navigation,
+      seoSettings,
+      builderState,
+      status: 'DRAFT',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      },
+    });
   }
 
-  async publishDraftSiteCustomization(siteConfigId: string, publishedBy: string) {
+  async publishDraftSiteCustomization(dealerId: string) {
     await this.ensureConnection();
 
     return await prisma.$transaction(async (tx) => {
       // Get current draft
       const draft = await tx.$queryRaw`
-        SELECT * FROM site_customizations
-        WHERE "siteConfigId" = ${siteConfigId} AND status = 'DRAFT'
+        SELECT * FROM customizations
+        WHERE "dealerId" = ${dealerId} AND status = 'DRAFT'
         LIMIT 1
       ` as any[];
 
@@ -164,28 +201,28 @@ export class DatabaseService {
 
       // Archive existing published version
       await tx.$executeRaw`
-        UPDATE site_customizations
+        UPDATE customizations
         SET status = 'ARCHIVED', "updatedAt" = NOW()
-        WHERE "siteConfigId" = ${siteConfigId} AND status = 'PUBLISHED'
+        WHERE "dealerId" = ${dealerId} AND status = 'PUBLISHED'
       `;
 
       // Create new published version from draft
       await tx.$executeRaw`
-        INSERT INTO site_customizations (
-          id, "siteConfigId", "themeId", "customColors", "customTypography", "customSpacing",
+        INSERT INTO customizations (
+          id, "dealerId", "themeId", "customColors", "customTypography", "customSpacing",
           "customComponents", sections, content, navigation, "seoSettings", status,
-          "publishedAt", "publishedBy", "createdAt", "updatedAt"
+          "publishedAt", "createdAt", "updatedAt"
         ) VALUES (
-          gen_random_uuid(), ${siteConfigId}, ${draftData.themeId}, ${draftData.customColors}::jsonb,
+          gen_random_uuid(), ${dealerId}, ${draftData.themeId}, ${draftData.customColors}::jsonb,
           ${draftData.customTypography}::jsonb, ${draftData.customSpacing}::jsonb, ${draftData.customComponents}::jsonb,
           ${draftData.sections}::jsonb, ${draftData.content}::jsonb, ${draftData.navigation}::jsonb,
-          ${draftData.seoSettings}::jsonb, 'PUBLISHED', NOW(), ${publishedBy}, NOW(), NOW()
+          ${draftData.seoSettings}::jsonb, 'PUBLISHED', NOW(), NOW(), NOW()
         )
       `;
 
       // Delete the draft
       await tx.$executeRaw`
-        DELETE FROM site_customizations WHERE id = ${draftData.id}
+        DELETE FROM customizations WHERE id = ${draftData.id}
       `;
 
       return { success: true };
@@ -245,7 +282,7 @@ export class DatabaseService {
         da.*,
         dsc.id as "site_config_id", dsc."externalDealerId", dsc.slug, dsc.subdomain, dsc."isActive" as "site_active"
       FROM dealer_admins da
-      LEFT JOIN dealer_site_configs dsc ON da."siteConfigId" = dsc.id
+      LEFT JOIN dealers dsc ON da."dealerId" = dsc.id
       WHERE da.email = ${email} AND da."isActive" = true
       LIMIT 1
     ` as any[];
@@ -266,33 +303,33 @@ export class DatabaseService {
     return null;
   }
 
-  async findDealerAdminBySiteConfig(siteConfigId: string) {
+  async findDealerAdminBySiteConfig(dealerId: string) {
     await this.ensureConnection();
 
     const result = await prisma.$queryRaw`
       SELECT * FROM dealer_admins
-      WHERE "siteConfigId" = ${siteConfigId} AND "isActive" = true
+      WHERE "dealerId" = ${dealerId} AND "isActive" = true
       LIMIT 1
     ` as any[];
     return result[0] || null;
   }
 
-  async updateAdminLastLogin(adminId: string) {
+  async updateAdminLastLogin(dealerAuthId: string) {
     await this.ensureConnection();
 
     return await prisma.$executeRaw`
       UPDATE dealer_admins
       SET "lastLoginAt" = NOW(), "updatedAt" = NOW()
-      WHERE id = ${adminId}
+      WHERE id = ${dealerAuthId}
     `;
   }
 
-  async createAdminSession(adminId: string, token: string, expiresAt: Date, ipAddress?: string, userAgent?: string) {
+  async createAdminSession(dealerAuthId: string, token: string, expiresAt: Date, ipAddress?: string, userAgent?: string) {
     await this.ensureConnection();
 
     return await prisma.$executeRaw`
-      INSERT INTO admin_sessions (id, "adminId", token, "expiresAt", "ipAddress", "userAgent", "createdAt", "updatedAt")
-      VALUES (gen_random_uuid(), ${adminId}, ${token}, ${expiresAt}, ${ipAddress}, ${userAgent}, NOW(), NOW())
+      INSERT INTO sessions (id, "dealerAuthId", token, "expiresAt", "ipAddress", "userAgent", "createdAt", "updatedAt")
+      VALUES (gen_random_uuid(), ${dealerAuthId}, ${token}, ${expiresAt}, ${ipAddress}, ${userAgent}, NOW(), NOW())
     `;
   }
 
@@ -302,11 +339,11 @@ export class DatabaseService {
     const result = await prisma.$queryRaw`
       SELECT
         s.*,
-        da.id as "admin_id", da.email as "admin_email", da.name as "admin_name", da."siteConfigId" as "admin_siteConfigId", da."isActive" as "admin_isActive",
+        da.id as "admin_id", da.email as "admin_email", da.name as "admin_name", da."dealerId" as "admin_siteConfigId", da."isActive" as "admin_isActive",
         dsc.id as "site_config_id", dsc."externalDealerId", dsc.slug as "site_slug", dsc.subdomain, dsc."isActive" as "site_active"
-      FROM admin_sessions s
-      LEFT JOIN dealer_admins da ON s."adminId" = da.id
-      LEFT JOIN dealer_site_configs dsc ON da."siteConfigId" = dsc.id
+      FROM sessions s
+      LEFT JOIN dealer_admins da ON s."dealerAuthId" = da.id
+      LEFT JOIN dealers dsc ON da."dealerId" = dsc.id
       WHERE s.token = ${token} AND s."expiresAt" > NOW()
       LIMIT 1
     ` as any[];
@@ -319,7 +356,7 @@ export class DatabaseService {
           id: session.admin_id,
           email: session.admin_email,
           name: session.admin_name,
-          siteConfigId: session.admin_siteConfigId,
+          dealerId: session.admin_siteConfigId,
           isActive: session.admin_isActive,
           siteConfig: {
             id: session.site_config_id,
@@ -338,7 +375,7 @@ export class DatabaseService {
     await this.ensureConnection();
 
     return await prisma.$executeRaw`
-      DELETE FROM admin_sessions
+      DELETE FROM sessions
       WHERE "expiresAt" < NOW()
     `;
   }
@@ -410,12 +447,12 @@ export const findSiteConfigBySlug = (slug: string) => db.findSiteConfigBySlug(sl
 export const findSiteConfigByExternalId = (externalId: string) => db.findSiteConfigByExternalId(externalId);
 
 // Convenience functions for site customization
-export const getSiteCustomization = (siteConfigId: string, status: 'DRAFT' | 'PUBLISHED') =>
-  db.getSiteCustomization(siteConfigId, status);
-export const upsertDraftSiteCustomization = (siteConfigId: string, themeId: string, data: any) =>
-  db.upsertDraftSiteCustomization(siteConfigId, themeId, data);
-export const publishDraftSiteCustomization = (siteConfigId: string, publishedBy: string) =>
-  db.publishDraftSiteCustomization(siteConfigId, publishedBy);
+export const getSiteCustomization = (dealerId: string, status: 'DRAFT' | 'PUBLISHED') =>
+  db.getSiteCustomization(dealerId, status);
+export const upsertDraftSiteCustomization = (dealerId: string, themeId: string, data: any) =>
+  db.upsertDraftSiteCustomization(dealerId, themeId, data);
+export const publishDraftSiteCustomization = (dealerId: string) =>
+  db.publishDraftSiteCustomization(dealerId);
 
 // Convenience functions for themes
 export const getAvailableThemes = () => db.getAvailableThemes();
@@ -425,10 +462,10 @@ export const getDefaultTheme = () => db.getDefaultTheme();
 
 // Convenience functions for dealer admin
 export const findDealerAdminByEmail = (email: string) => db.findDealerAdminByEmail(email);
-export const findDealerAdminBySiteConfig = (siteConfigId: string) => db.findDealerAdminBySiteConfig(siteConfigId);
-export const updateAdminLastLogin = (adminId: string) => db.updateAdminLastLogin(adminId);
-export const createAdminSession = (adminId: string, token: string, expiresAt: Date, ipAddress?: string, userAgent?: string) =>
-  db.createAdminSession(adminId, token, expiresAt, ipAddress, userAgent);
+export const findDealerAdminBySiteConfig = (dealerId: string) => db.findDealerAdminBySiteConfig(dealerId);
+export const updateAdminLastLogin = (dealerAuthId: string) => db.updateAdminLastLogin(dealerAuthId);
+export const createAdminSession = (dealerAuthId: string, token: string, expiresAt: Date, ipAddress?: string, userAgent?: string) =>
+  db.createAdminSession(dealerAuthId, token, expiresAt, ipAddress, userAgent);
 export const findValidSession = (token: string) => db.findValidSession(token);
 export const deleteExpiredSessions = () => db.deleteExpiredSessions();
 

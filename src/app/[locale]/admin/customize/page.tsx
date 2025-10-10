@@ -5,7 +5,7 @@ import { LiveCustomizer } from './LiveCustomizer';
 
 export default async function AdminCustomizePage() {
   // Require authentication and dealer access
-  const { session, externalDealerId, siteConfigId } = await requireDealerAccess();
+  const { session, externalDealerId, dealerId } = await requireDealerAccess();
 
   // Get current dealer info from external API and config
   const [dealer, config] = await Promise.all([
@@ -24,7 +24,7 @@ export default async function AdminCustomizePage() {
         dealer={dealer}
         initialConfig={config}
         externalDealerId={externalDealerId}
-        siteConfigId={siteConfigId}
+        dealerId={dealerId}
       />
     </div>
   );

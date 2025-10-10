@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: { locale: string; slug: string[] } }
 ) {
   try {
-    const { locale, slug } = params;
+    const { locale, slug } = await params;
     const tenant = await getCurrentTenant();
 
     // Validate locale

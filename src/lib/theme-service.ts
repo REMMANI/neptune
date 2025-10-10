@@ -23,7 +23,7 @@ export interface ThemeInfo {
 
 export interface SiteCustomizationInfo {
   id: string;
-  siteConfigId: string;
+  dealerId: string;
   theme: ThemeInfo;
   customColors?: any;
   customTypography?: any;
@@ -35,7 +35,6 @@ export interface SiteCustomizationInfo {
   seoSettings: any;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   publishedAt?: Date;
-  publishedBy?: string;
   builderState?: any;
   createdAt: Date;
   updatedAt: Date;
@@ -101,14 +100,14 @@ export class ThemeService {
    * Get site customization (draft or published)
    */
   async getSiteCustomization(
-    siteConfigId: string,
+    dealerId: string,
     status: 'DRAFT' | 'PUBLISHED'
   ): Promise<SiteCustomizationInfo | null> {
     // Once Prisma client is working:
     // return prisma.siteCustomization.findUnique({
     //   where: {
     //     siteConfigId_status: {
-    //       siteConfigId,
+    //       dealerId,
     //       status
     //     }
     //   },
@@ -124,7 +123,7 @@ export class ThemeService {
    * Create or update draft customization
    */
   async upsertDraftCustomization(
-    siteConfigId: string,
+    dealerId: string,
     themeId: string,
     customizationData: {
       customColors?: any;
@@ -142,12 +141,12 @@ export class ThemeService {
     // return prisma.siteCustomization.upsert({
     //   where: {
     //     siteConfigId_status: {
-    //       siteConfigId,
+    //       dealerId,
     //       status: 'DRAFT'
     //     }
     //   },
     //   create: {
-    //     siteConfigId,
+    //     dealerId,
     //     themeId,
     //     status: 'DRAFT',
     //     ...customizationData
@@ -165,8 +164,7 @@ export class ThemeService {
    * Publish draft customization
    */
   async publishDraftCustomization(
-    siteConfigId: string,
-    publishedBy: string
+    dealerId: string,
   ): Promise<SiteCustomizationInfo | null> {
     // Once Prisma client is working:
     // return prisma.$transaction(async (tx) => {
@@ -174,7 +172,7 @@ export class ThemeService {
     //   const draft = await tx.siteCustomization.findUnique({
     //     where: {
     //       siteConfigId_status: {
-    //         siteConfigId,
+    //         dealerId,
     //         status: 'DRAFT'
     //       }
     //     }
@@ -187,7 +185,7 @@ export class ThemeService {
     //   // Archive current published version if it exists
     //   await tx.siteCustomization.updateMany({
     //     where: {
-    //       siteConfigId,
+    //       dealerId,
     //       status: 'PUBLISHED'
     //     },
     //     data: {
@@ -202,7 +200,6 @@ export class ThemeService {
     //       id: undefined, // Let DB generate new ID
     //       status: 'PUBLISHED',
     //       publishedAt: new Date(),
-    //       publishedBy,
     //       builderState: null // Clear builder state for published version
     //     },
     //     include: {

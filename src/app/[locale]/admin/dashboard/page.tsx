@@ -9,15 +9,13 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default async function AdminDashboard() {
-  const { session, externalDealerId, siteConfigId } = await requireDealerAccess();
+  const { session, externalDealerId, dealerId } = await requireDealerAccess();
 
   // Fetch dealer info from external API and config
   const [dealer, config] = await Promise.all([
     dealerService.getDealerById(externalDealerId),
     getDealerConfig(externalDealerId, { preview: false })
   ]);
-
-  console.log('Dealer Config:', config, dealer);
 
   if (!dealer) {
     throw new Error('Dealer not found');
@@ -67,7 +65,7 @@ export default async function AdminDashboard() {
 
               <div className="flex items-center space-x-3">
                 <Button asChild variant="outline" className="hidden sm:flex">
-                  <Link href="/en" target="_blank">
+                  <Link href="/en" target="_blank" className='w-full flex items-center justify-center'>
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
@@ -75,7 +73,7 @@ export default async function AdminDashboard() {
                   </Link>
                 </Button>
                 <Button asChild className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg">
-                  <Link href="/admin/customize">
+                  <Link href="/admin/customize" className='w-full flex items-center justify-center'>
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
@@ -96,7 +94,7 @@ export default async function AdminDashboard() {
                   <div>
                     <p className="text-sm font-medium text-gray-600 mb-1">External ID</p>
                     <p className="text-2xl font-bold text-gray-900">{externalDealerId}</p>
-                    <p className="text-xs text-gray-500 mt-1">Site: {siteConfigId.slice(0, 8)}...</p>
+                    <p className="text-xs text-gray-500 mt-1">Site: {dealerId.slice(0, 8)}...</p>
                   </div>
                   <div className="w-12 h-12 bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center">
                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -205,7 +203,7 @@ export default async function AdminDashboard() {
                   </ul>
                 </div>
                 <Button asChild className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg transition-all duration-200 transform hover:scale-[1.02]">
-                  <Link href="/admin/customize">
+                  <Link href="/admin/customize" className='w-full flex items-center justify-center'>
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
@@ -256,7 +254,7 @@ export default async function AdminDashboard() {
                   </ul>
                 </div>
                 <Button asChild className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 shadow-lg transition-all duration-200 transform hover:scale-[1.02]">
-                  <Link href="/admin/templates">
+                  <Link href="/admin/templates" className='w-full flex items-center justify-center'>
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
                     </svg>
@@ -307,7 +305,7 @@ export default async function AdminDashboard() {
                   </ul>
                 </div>
                 <Button asChild variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition-all duration-200">
-                  <Link href="/en" target="_blank">
+                  <Link href="/en" target="_blank" className='w-full flex items-center justify-center'>
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>

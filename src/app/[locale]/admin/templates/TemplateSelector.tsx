@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import type { AuthSession } from '@/lib/auth';
+import type { Session } from '@/lib/auth';
 
 interface Template {
   id: string;
@@ -19,7 +19,7 @@ interface Template {
 }
 
 interface TemplateSelectorProps {
-  session: AuthSession;
+  session: Session;
   dealerId: string;
 }
 
@@ -41,9 +41,8 @@ export function TemplateSelector({ session, dealerId }: TemplateSelectorProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch templates');
-      }
-
+        throw new Error('-----Failed to fetch templates');
+      }      
       const data = await response.json();
       setTemplates(data.templates || []);
     } catch (error) {

@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
-import { isAuthenticatedForDealer, hasPermission } from '@/lib/auth';
+import { getSessionFromRequest, isAuthenticatedForDealer } from '@/lib/auth';
 import { findDealerById, getCustomization, publishDraftCustomization } from '@/lib/db';
 import { invalidateDealerCache } from '@/lib/config';
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  request: NextRequest
 ) {
   try {
-    const { id: dealerId } = await params;
+    const session = await getSessionFromRequest(request);
+    const dealerId = (session as any).user.id 
 
     // Check authentication and dealer access
     if (!(await isAuthenticatedForDealer(request, dealerId))) {

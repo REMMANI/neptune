@@ -60,17 +60,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Theme not found' }, { status: 404 });
     }
 
-    console.log('Selecting theme for dealer:', dealerId);
-
     const templateData = theme[0];
 
-    // Ensure DealerSiteConfig exists for this dealer
-    let siteConfig = await prisma.dealerSiteConfig.findUnique({
+    // Ensure dealer exists for this dealer
+    let siteConfig = await prisma.dealer.findUnique({
       where: { id: dealerId }
     });
 
     if (!siteConfig) {
-      siteConfig = await prisma.dealerSiteConfig.create({
+      siteConfig = await prisma.dealer.create({
         data: {
           id: dealerId,
           externalDealerId: dealerId, // or provide the correct externalDealerId value
@@ -80,10 +78,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Create or update dealer customization with theme data
-    await prisma.siteCustomization.upsert({
+    await prisma.customization.upsert({
       where: {
-        siteConfigId_status: {
-          siteConfigId: dealerId,
+        dealerId_status: {
+          dealerId: dealerId,
           status: 'DRAFT'
         }
       },

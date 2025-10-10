@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create session
+    
     const sessionToken = await createSession(admin);
 
     // Set secure HTTP-only cookie

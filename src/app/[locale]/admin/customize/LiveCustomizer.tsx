@@ -9,20 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import type { AuthSession } from '@/lib/auth';
+import type { Session } from '@/lib/auth';
 import type { DealerConfig } from '@/types/customization';
 import type { DealerInfo } from '@/lib/dealer-service';
 import { SectionManager } from './SectionManager';
 
 interface LiveCustomizerProps {
-  session: AuthSession;
+  session: Session;
   dealer: DealerInfo;
   initialConfig: DealerConfig;
   externalDealerId: string;
-  siteConfigId: string;
+  dealerId: string;
 }
 
-export function LiveCustomizer({ session, dealer, initialConfig, externalDealerId, siteConfigId }: LiveCustomizerProps) {
+export function LiveCustomizer({ session, dealer, initialConfig, externalDealerId, dealerId }: LiveCustomizerProps) {
   const [config, setConfig] = useState(initialConfig);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -46,7 +46,7 @@ export function LiveCustomizer({ session, dealer, initialConfig, externalDealerI
 
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/admin/dealers/${externalDealerId}/customizations/draft`, {
+      const response = await fetch(`/api/admin/dealers/customizations/draft`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,7 +162,7 @@ export function LiveCustomizer({ session, dealer, initialConfig, externalDealerI
 
     setIsPublishing(true);
     try {
-      const response = await fetch(`/api/admin/dealers/${externalDealerId}/customizations/publish`, {
+      const response = await fetch(`/api/admin/dealers/customizations/publish`, {
         method: 'POST',
         credentials: 'include',
       });

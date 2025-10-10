@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { hashPassword } from '../src/lib/hash';
-import { externalDealerApi, mapExternalToInternal } from '../src/lib/external-dealer-api';
+import { externalDealerApi } from '../src/lib/external-dealer-api';
 import { seedThemes } from './seed-themes';
 
 const prisma = new PrismaClient();
@@ -53,7 +53,7 @@ async function seedDatabase() {
     console.log(`\n🏢 Processing: ${externalDealer.businessInfo.displayName}...`);
 
     // Create dealer site config using Prisma ORM
-    const siteConfig = await prisma.dealerSiteConfig.upsert({
+    const siteConfig = await prisma.dealer.upsert({
       where: {
         externalDealerId: externalDealer.dealerId
       },
@@ -73,9 +73,9 @@ async function seedDatabase() {
       }
     });
 
-    const siteConfigId = siteConfig.id;
+    const dealerId = siteConfig.id;
 
-    if (!siteConfigId) {
+    if (!dealerId) {
       console.log(`❌ Failed to process dealer: ${externalDealer.businessInfo.displayName}`);
       continue;
     }
@@ -84,7 +84,7 @@ async function seedDatabase() {
     const adminEmail = externalDealer.contactDetails.primaryEmail;
     const adminName = `${externalDealer.businessInfo.displayName} Admin`;
 
-    await prisma.dealerAdmin.upsert({
+    await prisma.dealerAuth.upsert({
       where: {
         email: adminEmail
       },
@@ -94,7 +94,7 @@ async function seedDatabase() {
         isActive: true,
       },
       create: {
-        siteConfigId: siteConfigId,
+        dealerId: dealerId,
         email: adminEmail,
         name: adminName,
         hashedPassword: adminPassword,
@@ -102,64 +102,11 @@ async function seedDatabase() {
       }
     });
 
-    // Create default site customization (published) using Prisma ORM
-    await prisma.siteCustomization.upsert({
-      where: {
-        siteConfigId_status: {
-          siteConfigId: siteConfigId,
-          status: 'PUBLISHED'
-        }
-      },
-      update: {
-        content: {
-          businessName: externalDealer.businessInfo.displayName,
-          tagline: "Your trusted automotive partner"
-        },
-        seoSettings: {
-          title: externalDealer.businessInfo.displayName,
-          description: "Professional automotive dealership"
-        },
-      },
-      create: {
-        siteConfigId: siteConfigId,
-        themeId: defaultTheme.id,
-        customColors: null,
-        customTypography: null,
-        customSpacing: null,
-        customComponents: null,
-        sections: {
-          hero: { enabled: true },
-          features: { enabled: true },
-          footer: { enabled: true }
-        },
-        content: {
-          businessName: externalDealer.businessInfo.displayName,
-          tagline: "Your trusted automotive partner"
-        },
-        navigation: {
-          items: [
-            { label: "Home", href: "/", order: 1 },
-            { label: "Inventory", href: "/inventory", order: 2 },
-            { label: "About", href: "/about", order: 3 },
-            { label: "Contact", href: "/contact", order: 4 }
-          ]
-        },
-        seoSettings: {
-          title: externalDealer.businessInfo.displayName,
-          description: "Professional automotive dealership"
-        },
-        status: 'PUBLISHED',
-        publishedAt: new Date(),
-        publishedBy: 'system',
-        builderState: null,
-      }
-    });
-
     console.log(`✅ Created: ${externalDealer.businessInfo.displayName}`);
   }
 
   // Get summary using Prisma ORM
-  const dealerSummary = await prisma.dealerSiteConfig.findMany({
+  const dealerSummary = await prisma.dealer.findMany({
     include: {
       adminAuth: {
         select: {

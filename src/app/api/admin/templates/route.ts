@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/auth';
+import { log } from 'console';
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,6 +40,8 @@ export async function GET(request: NextRequest) {
         { createdAt: 'asc' }
       ]
     });
+
+    log('******* Fetched themes:', themes);
 
     // Transform themes to template format for compatibility
     return NextResponse.json({

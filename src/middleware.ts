@@ -7,9 +7,7 @@ export function middleware(request: NextRequest) {
   // Handle admin routes with authentication
   if (pathname.startsWith('/admin')) {
     // Allow login and unauthorized pages
-    if (pathname === '/admin/login' || pathname === '/admin/unauthorized') {
-      console.log('Allowing access to', pathname);
-      
+    if (pathname === '/admin/login' || pathname === '/admin/unauthorized') {      
       return NextResponse.next();
     }
 
